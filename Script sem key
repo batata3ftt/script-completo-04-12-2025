@@ -1,0 +1,377 @@
+
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
+
+local Window = Library:Window({
+    Title = "Spectral Hub",
+    Desc = "criado por batata3ftt",
+    Icon = 105059922903197,
+    Theme = "Dark",
+    Config = {
+        Keybind = Enum.KeyCode.LeftControl,
+        Size = UDim2.new(0, 500, 0, 400)
+    },
+    CloseUIButton = {
+        Enabled = true,
+        Text = "Spectral Hub"
+    }
+})
+
+local WalkSpeedValue = 16
+local WalkSpeedEnabled = false
+local JumpPowerValue = 50
+local JumpPowerEnabled = false
+local BallSizeValue = 34
+local BallTransparencyValue = 1
+local BallModEnabled = false
+local ESPEnabled = false
+
+local player = game.Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+
+local function applyValues()
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        local humanoid = player.Character.Humanoid
+        
+        if WalkSpeedEnabled then
+            humanoid.WalkSpeed = WalkSpeedValue
+        end
+        
+        if JumpPowerEnabled then
+            humanoid.JumpPower = JumpPowerValue
+        end
+    end
+end
+
+local function applyBallProperties(ball)
+    if not ball or not ball:IsA("BasePart") or not BallModEnabled then return end
+
+    task.wait(0.05)
+    ball.Size = Vector3.new(BallSizeValue, BallSizeValue, BallSizeValue)
+    ball.Transparency = BallTransparencyValue / 100
+    ball.Massless = false
+    ball.CastShadow = true
+end
+
+local function monitorBall(ball)
+    applyBallProperties(ball)
+
+    ball:GetPropertyChangedSignal("Transparency"):Connect(function()
+        if BallModEnabled and ball.Transparency ~= (BallTransparencyValue / 100) then
+            applyBallProperties(ball)
+        end
+    end)
+
+    ball:GetPropertyChangedSignal("Size"):Connect(function()
+        if BallModEnabled and ball.Size.Magnitude ~= BallSizeValue then
+            applyBallProperties(ball)
+        end
+    end)
+end
+
+local existingBall = Workspace:FindFirstChild("Ball")
+if existingBall then
+    monitorBall(existingBall)
+end
+
+Workspace.ChildAdded:Connect(function(child)
+    if child.Name == "Ball" and child:IsA("BasePart") then
+        monitorBall(child)
+    end
+end)
+
+game:GetService("RunService").Heartbeat:Connect(function()
+    applyValues()
+end)
+
+player.CharacterAdded:Connect(function(character)
+    character:WaitForChild("Humanoid")
+    task.wait(0.1)
+    applyValues()
+end)
+
+-- ESP BALL Script
+local BALL_NAME = "Ball"
+local dt = 0.05
+local maxSimTime = 6
+local maxSteps = math.ceil(maxSimTime / dt)
+local markerSize = Vector3.new(1.5, 0.2, 1.5)
+local markerColor = Color3.fromRGB(0, 200, 120)
+local markerTransparency = 0.4
+
+local function createMarker()
+    local part = Instance.new("Part")
+    part.Name = "PredictionMarker"
+    part.Size = markerSize
+    part.Anchored = true
+    part.CanCollide = false
+    part.Material = Enum.Material.Neon
+    part.Color = markerColor
+    part.Transparency = markerTransparency
+    part.TopSurface = Enum.SurfaceType.Smooth
+    part.BottomSurface = Enum.SurfaceType.Smooth
+    return part
+end
+
+local function getBall()
+    return workspace:FindFirstChild(BALL_NAME)
+end
+
+local function predictLanding(initialPos, initialVel)
+    local gravity = workspace.Gravity
+    local acc = Vector3.new(0, -gravity, 0)
+    local prevPos = initialPos
+    local vel = initialVel
+
+    local params = RaycastParams.new()
+    params.FilterDescendantsInstances = {player.Character}
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+    params.IgnoreWater = false
+
+    for step = 1, maxSteps do
+        local t = dt
+        local nextPos = prevPos + vel * t + 0.5 * acc * (t * t)
+        local nextVel = vel + acc * t
+
+        local direction = nextPos - prevPos
+        local distance = direction.Magnitude
+        if distance > 0 then
+            local rayResult = workspace:Raycast(prevPos, direction, params)
+            if rayResult then
+                return {
+                    hitPosition = rayResult.Position,
+                    hitNormal = rayResult.Normal,
+                    hitInstance = rayResult.Instance,
+                    time = (step - 1) * dt + ((rayResult.Position - prevPos).Magnitude / ((vel + nextVel).Magnitude / 2 + 1e-6))
+                }
+            end
+        end
+
+        prevPos = nextPos
+        vel = nextVel
+    end
+
+    return nil
+end
+
+local marker = nil
+local espConnection = nil
+
+local Main = Window:Tab({Title = "Main", Icon = "house"}) do
+    Main:Section({Title = "MOVEMENT"})
+    
+    Main:Toggle({
+        Title = "WALKSPEED",
+        Desc = "info: recomendo 37 de speed se quiser disfarçar",
+        Value = false,
+        Callback = function(v)
+            WalkSpeedEnabled = v
+            applyValues()
+        end
+    })
+
+    Main:Slider({
+        Title = "WalkSpeed",
+        Min = 0,
+        Max = 100,
+        Rounding = 0,
+        Value = 16,
+        Callback = function(val)
+            WalkSpeedValue = val
+            applyValues()
+        end
+    })
+    
+    Main:Toggle({
+        Title = "JUMPOWER",
+        Desc = "info: recomendo 66 de power se quiser disfarçar",
+        Value = false,
+        Callback = function(v)
+            JumpPowerEnabled = v
+            applyValues()
+        end
+    })
+
+    Main:Slider({
+        Title = "JUMPOWER",
+        Min = 0,
+        Max = 100,
+        Rounding = 0,
+        Value = 50,
+        Callback = function(val)
+            JumpPowerValue = val
+            applyValues()
+        end
+    })
+
+    Main:Section({Title = "BALL MODIFICATIONS"})
+
+    Main:Toggle({
+        Title = "BALL HITBOX",
+        Desc = "info: use essa hitbox mais pro tackle",
+        Value = false,
+        Callback = function(v)
+            BallModEnabled = v
+            if v then
+                local ball = Workspace:FindFirstChild("Ball")
+                if ball then
+                    applyBallProperties(ball)
+                end
+            end
+        end
+    })
+
+    Main:Slider({
+        Title = "BALL SIZE",
+        Min = 0,
+        Max = 100,
+        Rounding = 0,
+        Value = 34,
+        Callback = function(val)
+            BallSizeValue = val
+            if BallModEnabled then
+                local ball = Workspace:FindFirstChild("Ball")
+                if ball then
+                    applyBallProperties(ball)
+                end
+            end
+        end
+    })
+
+    Main:Slider({
+        Title = "BALL TRANSPARENCE",
+        Min = 0,
+        Max = 100,
+        Rounding = 0,
+        Value = 100,
+        Callback = function(val)
+            BallTransparencyValue = val
+            if BallModEnabled then
+                local ball = Workspace:FindFirstChild("Ball")
+                if ball then
+                    applyBallProperties(ball)
+                end
+            end
+        end
+    })
+
+    Main:Section({Title = "Ball ESP"})
+
+    Main:Toggle({
+        Title = "ESP BALL",
+        Desc = "info: predict ball esp",
+        Value = false,
+        Callback = function(v)
+            ESPEnabled = v
+            
+            if v then
+                -- Criar marcador
+                marker = workspace:FindFirstChild("PredictionMarker")
+                if not marker then
+                    marker = createMarker()
+                    marker.Parent = workspace
+                end
+                marker.Transparency = 1
+
+                -- Iniciar loop de predição
+                espConnection = RunService.RenderStepped:Connect(function()
+                    if not ESPEnabled then return end
+                    
+                    local ball = getBall()
+                    if not ball or not ball:IsA("BasePart") then
+                        marker.Transparency = 1
+                        return
+                    end
+
+                    local pos = ball.Position
+                    local vel = ball.Velocity
+
+                    if vel.Magnitude < 0.1 then
+                        local below = workspace:Raycast(pos, Vector3.new(0, -2, 0))
+                        if below then
+                            marker.Transparency = 1
+                            return
+                        end
+                    end
+
+                    local result = predictLanding(pos, vel)
+                    if result then
+                        marker.CFrame = CFrame.new(result.hitPosition)
+                        marker.Transparency = markerTransparency
+                    else
+                        marker.Transparency = 1
+                    end
+                end)
+
+                Window:Notify({
+                    Title = "ESP BALL",
+                    Desc = "ESP da bola ativado!",
+                    Time = 3
+                })
+            else
+                -- Desativar ESP
+                if espConnection then
+                    espConnection:Disconnect()
+                    espConnection = nil
+                end
+                if marker then
+                    marker.Transparency = 1
+                end
+                Window:Notify({
+                    Title = "ESP BALL",
+                    Desc = "ESP da bola desativado!",
+                    Time = 3
+                })
+            end
+        end
+    })
+end
+
+local Techs = Window:Tab({Title = "Techs", Icon = "tag"}) do
+    Techs:Section({Title = "TECNICAS"})
+
+    Techs:Button({
+        Title = "AIR DRIBLE",
+        Desc = "info: quando a bola for chutada chute depois para fingir que está chutando, disfarce",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Air-drible-beta/refs/heads/main/Air%20drible%20beta"))()
+            Window:Notify({
+                Title = "Techs",
+                Desc = "Air Dribble executado!",
+                Time = 3
+            })
+        end
+    })
+
+    Techs:Button({
+        Title = "AIMBOT BALL (BETA)",
+        Desc = "o aimbot não gruda com a bola parada",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/AIMBOT-BALL-OBFUSCADO-/refs/heads/main/AIMBOT%20BALL%20OBFUSCADO"))()
+            Window:Notify({
+                Title = "Techs",
+                Desc = "AIM BOT BALL executado!",
+                Time = 3
+            })
+        end
+    })
+
+Techs:Button({
+        Title = "AUTO GK (BETA)",
+        Desc = "info: recomendo usar sem shift lock",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/AUTO-GK-OBFUSCADO-/refs/heads/main/AUTO%20GK"))()
+            Window:Notify({
+                Title = "Techs",
+                Desc = "AUTO GK executado!",
+                Time = 3
+            })
+        end
+    })
+end
+
+Window:Notify({
+    Title = "Spectral Hub",
+    Desc = "Script carregado com sucesso!",
+    Time = 4
+})

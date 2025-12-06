@@ -1,10 +1,9 @@
-
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
 
 local Window = Library:Window({
-    Title = "Spectral Hub",
-    Desc = "criado por batata3ftt",
-    Icon = 105059922903197,
+    Title = "BATATA HUB",
+    Desc = "criado por batata",
+    Icon = 140370248943220,
     Theme = "Dark",
     Config = {
         Keybind = Enum.KeyCode.LeftControl,
@@ -12,7 +11,7 @@ local Window = Library:Window({
     },
     CloseUIButton = {
         Enabled = true,
-        Text = "Spectral Hub"
+        Text = "BATATA HUB"
     }
 })
 
@@ -157,7 +156,7 @@ end
 local marker = nil
 local espConnection = nil
 
-local Main = Window:Tab({Title = "Main", Icon = "house"}) do
+local Main = Window:Tab({Title = "MAIN", Icon = "house"}) do
     Main:Section({Title = "MOVEMENT"})
     
     Main:Toggle({
@@ -327,7 +326,7 @@ local Main = Window:Tab({Title = "Main", Icon = "house"}) do
     })
 end
 
-local Techs = Window:Tab({Title = "Techs", Icon = "tag"}) do
+local Techs = Window:Tab({Title = "TECHS", Icon = "tag"}) do
     Techs:Section({Title = "TECNICAS"})
 
     Techs:Button({
@@ -337,7 +336,7 @@ local Techs = Window:Tab({Title = "Techs", Icon = "tag"}) do
             loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Air-drible-beta/refs/heads/main/Air%20drible%20beta"))()
             Window:Notify({
                 Title = "Techs",
-                Desc = "Air Dribble executado!",
+                Desc = "AIR DRIBLE executado!",
                 Time = 3
             })
         end
@@ -345,7 +344,7 @@ local Techs = Window:Tab({Title = "Techs", Icon = "tag"}) do
 
     Techs:Button({
         Title = "AIMBOT BALL (BETA)",
-        Desc = "o aimbot não gruda com a bola parada",
+        Desc = "info: o aimbot não gruda com a bola parada",
         Callback = function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/AIMBOT-BALL-OBFUSCADO-/refs/heads/main/AIMBOT%20BALL%20OBFUSCADO"))()
             Window:Notify({
@@ -370,8 +369,30 @@ Techs:Button({
     })
 end
 
+local FPSBoost = Window:Tab({Title = "SETTINGS", Icon = "settings"}) do
+    
+    FPSBoost:Section({Title = "PERFORMANCE"})
+    
+    FPSBoost:Button({
+        Title = "FPS BOOST",
+        Desc = "info: vai travar um pouco mais é só pra carregar o script",
+        Callback = function()
+            getgenv().REMOVE_EFFECTS = true -- Removes visual effects for fps (true/false)
+            getgenv().SHOW_WHOLE_MAP = true -- Show whole map without lag (true/false)
+
+ loadstring(game:HttpGet("https://pastebin.com/raw/5cKCJvXC"))()
+            
+            Window:Notify({
+                Title = "FPS BOOST",
+                Desc = "BOOST Executado!",
+                Time = 3
+            })
+        end
+    })
+  end
+
 Window:Notify({
-    Title = "Spectral Hub",
+    Title = "BATATA HUB",
     Desc = "Script carregado com sucesso!",
     Time = 4
 })

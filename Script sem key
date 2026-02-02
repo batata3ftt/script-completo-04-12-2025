@@ -390,7 +390,24 @@ local FPSBoost = Window:Tab({Title = "SETTINGS", Icon = "settings"}) do
         end
     })
   end
-
+local Armas = Window:Tab({Title = "ARMAS ENGRAÇADAS", Icon = "user"}) do
+    
+    Armas:Section({Title = "ARMAS MODIFICADAS"})
+    
+    Armas:Button({
+        Title = "EMPERROR",
+        Desc = "info: essa arma é modificada para deixar a gameplay mais divertida",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Script-skill-meme-completar-emperor/refs/heads/main/Skill%20meme%20emperor"))()
+            Window:Notify({
+                Title = "ARMAS ENGRAÇADAS",
+                Desc = "skills memes + aura",
+                Time = 3
+            })
+        end
+    })
+    
+end
 Window:Notify({
     Title = "BATATA HUB",
     Desc = "Script carregado com sucesso!",

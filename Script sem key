@@ -264,7 +264,6 @@ local Main = Window:Tab({Title = "MAIN", Icon = "house"}) do
             ESPEnabled = v
             
             if v then
-                -- Criar marcador
                 marker = workspace:FindFirstChild("PredictionMarker")
                 if not marker then
                     marker = createMarker()
@@ -272,7 +271,6 @@ local Main = Window:Tab({Title = "MAIN", Icon = "house"}) do
                 end
                 marker.Transparency = 1
 
-                -- Iniciar loop de predição
                 espConnection = RunService.RenderStepped:Connect(function()
                     if not ESPEnabled then return end
                     
@@ -308,7 +306,6 @@ local Main = Window:Tab({Title = "MAIN", Icon = "house"}) do
                     Time = 3
                 })
             else
-                -- Desativar ESP
                 if espConnection then
                     espConnection:Disconnect()
                     espConnection = nil
@@ -355,7 +352,7 @@ local Techs = Window:Tab({Title = "TECHS", Icon = "tag"}) do
         end
     })
 
-Techs:Button({
+    Techs:Button({
         Title = "AUTO GK (BETA)",
         Desc = "info: recomendo usar sem shift lock",
         Callback = function()
@@ -369,27 +366,6 @@ Techs:Button({
     })
 end
 
-local FPSBoost = Window:Tab({Title = "SETTINGS", Icon = "settings"}) do
-    
-    FPSBoost:Section({Title = "PERFORMANCE"})
-    
-    FPSBoost:Button({
-        Title = "FPS BOOST",
-        Desc = "info: vai travar um pouco mais é só pra carregar o script",
-        Callback = function()
-            getgenv().REMOVE_EFFECTS = true -- Removes visual effects for fps (true/false)
-            getgenv().SHOW_WHOLE_MAP = true -- Show whole map without lag (true/false)
-
- loadstring(game:HttpGet("https://pastebin.com/raw/5cKCJvXC"))()
-            
-            Window:Notify({
-                Title = "FPS BOOST",
-                Desc = "BOOST Executado!",
-                Time = 3
-            })
-        end
-    })
-  end
 local Armas = Window:Tab({Title = "ARMAS ENGRAÇADAS", Icon = "user"}) do
     
     Armas:Section({Title = "ARMAS MODIFICADAS"})
@@ -408,6 +384,69 @@ local Armas = Window:Tab({Title = "ARMAS ENGRAÇADAS", Icon = "user"}) do
     })
     
 end
+
+local FPSBoost = Window:Tab({Title = "SETTINGS", Icon = "settings"}) do
+    
+    FPSBoost:Section({Title = "PERFORMANCE"})
+    
+    FPSBoost:Button({
+        Title = "FPS BOOST",
+        Desc = "info: vai travar um pouco mais é só pra carregar o script",
+        Callback = function()
+            getgenv().REMOVE_EFFECTS = true
+            getgenv().SHOW_WHOLE_MAP = true
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/JoshzzAlteregooo/FpsBooster/refs/heads/main/FpsboosterByJOSHZZ"))()
+            
+            Window:Notify({
+                Title = "FPS BOOST",
+                Desc = "BOOST Executado!",
+                Time = 3
+            })
+        end
+    })
+    
+    FPSBoost:Section({Title = "CAMERA"})
+    
+    local FOVValue = 0.5
+    local FOVEnabled = false
+    local FOVConnection = nil
+    
+    FPSBoost:Toggle({
+        Title = "FOV",
+        Desc = "info: mexa na distância da sua visão",
+        Value = false,
+        Callback = function(v)
+            FOVEnabled = v
+            
+            if v then
+                FOVConnection = game:GetService("RunService").RenderStepped:Connect(function()
+                    if FOVEnabled then
+                        workspace.CurrentCamera.CoordinateFrame = workspace.CurrentCamera.CoordinateFrame * CFrame.new(0,0,0,FOVValue+0.001,0,0,0,FOVValue+0.001,0,0,0,1)
+                    end
+                end)
+            else
+                if FOVConnection then
+                    FOVConnection:Disconnect()
+                    FOVConnection = nil
+                end
+            end
+        end
+    })
+    
+    FPSBoost:Slider({
+        Title = "FOV VALUE",
+        Min = 0,
+        Max = 100,
+        Rounding = 1,
+        Value = 50,
+        Callback = function(val)
+            -- INVERTIDO: 100 = perto (1), 0 = longe (0)
+            FOVValue = (100 - val) / 100
+        end
+    })
+    
+end
+
 Window:Notify({
     Title = "BATATA HUB",
     Desc = "Script carregado com sucesso!",

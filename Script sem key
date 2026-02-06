@@ -23,6 +23,7 @@ local BallSizeValue = 34
 local BallTransparencyValue = 1
 local BallModEnabled = false
 local ESPEnabled = false
+local ESPScript = nil
 
 local player = game.Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
@@ -88,73 +89,6 @@ player.CharacterAdded:Connect(function(character)
     task.wait(0.1)
     applyValues()
 end)
-
--- ESP BALL Script
-local BALL_NAME = "Ball"
-local dt = 0.05
-local maxSimTime = 6
-local maxSteps = math.ceil(maxSimTime / dt)
-local markerSize = Vector3.new(1.5, 0.2, 1.5)
-local markerColor = Color3.fromRGB(0, 200, 120)
-local markerTransparency = 0.4
-
-local function createMarker()
-    local part = Instance.new("Part")
-    part.Name = "PredictionMarker"
-    part.Size = markerSize
-    part.Anchored = true
-    part.CanCollide = false
-    part.Material = Enum.Material.Neon
-    part.Color = markerColor
-    part.Transparency = markerTransparency
-    part.TopSurface = Enum.SurfaceType.Smooth
-    part.BottomSurface = Enum.SurfaceType.Smooth
-    return part
-end
-
-local function getBall()
-    return workspace:FindFirstChild(BALL_NAME)
-end
-
-local function predictLanding(initialPos, initialVel)
-    local gravity = workspace.Gravity
-    local acc = Vector3.new(0, -gravity, 0)
-    local prevPos = initialPos
-    local vel = initialVel
-
-    local params = RaycastParams.new()
-    params.FilterDescendantsInstances = {player.Character}
-    params.FilterType = Enum.RaycastFilterType.Blacklist
-    params.IgnoreWater = false
-
-    for step = 1, maxSteps do
-        local t = dt
-        local nextPos = prevPos + vel * t + 0.5 * acc * (t * t)
-        local nextVel = vel + acc * t
-
-        local direction = nextPos - prevPos
-        local distance = direction.Magnitude
-        if distance > 0 then
-            local rayResult = workspace:Raycast(prevPos, direction, params)
-            if rayResult then
-                return {
-                    hitPosition = rayResult.Position,
-                    hitNormal = rayResult.Normal,
-                    hitInstance = rayResult.Instance,
-                    time = (step - 1) * dt + ((rayResult.Position - prevPos).Magnitude / ((vel + nextVel).Magnitude / 2 + 1e-6))
-                }
-            end
-        end
-
-        prevPos = nextPos
-        vel = nextVel
-    end
-
-    return nil
-end
-
-local marker = nil
-local espConnection = nil
 
 local Main = Window:Tab({Title = "MAIN", Icon = "house"}) do
     Main:Section({Title = "MOVEMENT"})
@@ -254,65 +188,31 @@ local Main = Window:Tab({Title = "MAIN", Icon = "house"}) do
         end
     })
 
-    Main:Section({Title = "Ball ESP"})
-
     Main:Toggle({
         Title = "ESP BALL",
-        Desc = "info: predict ball esp",
+        Desc = "info: a bola fica destacada no campo",
         Value = false,
         Callback = function(v)
             ESPEnabled = v
             
             if v then
-                marker = workspace:FindFirstChild("PredictionMarker")
-                if not marker then
-                    marker = createMarker()
-                    marker.Parent = workspace
-                end
-                marker.Transparency = 1
-
-                espConnection = RunService.RenderStepped:Connect(function()
-                    if not ESPEnabled then return end
-                    
-                    local ball = getBall()
-                    if not ball or not ball:IsA("BasePart") then
-                        marker.Transparency = 1
-                        return
-                    end
-
-                    local pos = ball.Position
-                    local vel = ball.Velocity
-
-                    if vel.Magnitude < 0.1 then
-                        local below = workspace:Raycast(pos, Vector3.new(0, -2, 0))
-                        if below then
-                            marker.Transparency = 1
-                            return
-                        end
-                    end
-
-                    local result = predictLanding(pos, vel)
-                    if result then
-                        marker.CFrame = CFrame.new(result.hitPosition)
-                        marker.Transparency = markerTransparency
-                    else
-                        marker.Transparency = 1
-                    end
-                end)
-
+                ESPScript = loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/BALL-predict/refs/heads/main/BALL%20predict"))()
                 Window:Notify({
                     Title = "ESP BALL",
                     Desc = "ESP da bola ativado!",
                     Time = 3
                 })
             else
-                if espConnection then
-                    espConnection:Disconnect()
-                    espConnection = nil
-                end
+                local marker = workspace:FindFirstChild("PredictionMarker")
                 if marker then
-                    marker.Transparency = 1
+                    marker:Destroy()
                 end
+                
+                local espGui = player.PlayerGui:FindFirstChild("BallESP")
+                if espGui then
+                    espGui:Destroy()
+                end
+                
                 Window:Notify({
                     Title = "ESP BALL",
                     Desc = "ESP da bola desativado!",
@@ -328,7 +228,7 @@ local Techs = Window:Tab({Title = "TECHS", Icon = "tag"}) do
 
     Techs:Button({
         Title = "AIR DRIBLE",
-        Desc = "info: quando a bola for chutada chute depois para fingir que está chutando, disfarce",
+        Desc = "info: o script tem alguns bugs mais funciona perfeitamente",
         Callback = function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Air-drible-beta/refs/heads/main/Air%20drible%20beta"))()
             Window:Notify({
@@ -405,6 +305,91 @@ local FPSBoost = Window:Tab({Title = "SETTINGS", Icon = "settings"}) do
         end
     })
     
+    FPSBoost:Section({Title = "VISUAL"})
+    
+    local MetaVisionEnabled = false
+    
+    FPSBoost:Toggle({
+        Title = "META VISION",
+        Desc = "info: ative a meta visão e receba informações sobre os jogadores",
+        Value = false,
+        Callback = function(v)
+            MetaVisionEnabled = v
+            
+            if v then
+                player:SetAttribute("Metavision", true)
+                Window:Notify({
+                    Title = "META VISION",
+                    Desc = "META VISION ativada!",
+                    Time = 3
+                })
+            else
+                player:SetAttribute("Metavision", false)
+                Window:Notify({
+                    Title = "META VISION",
+                    Desc = "META VISION desativada!",
+                    Time = 3
+                })
+            end
+        end
+    })
+    
+    FPSBoost:Button({
+        Title = "SHADER",
+        Desc = "info: esse Shader é apenas para deixar a gameplay mais bonita",
+        Callback = function()
+            loadstring(game:HttpGet("https://pastebin.com/raw/Zpaf00Nu"))()
+            Window:Notify({
+                Title = "SHADER",
+                Desc = "SHADER ativado!",
+                Time = 3
+            })
+        end
+    })
+    
+    local RainEnabled = false
+    
+    FPSBoost:Toggle({
+        Title = "CHUVA",
+        Desc = "info: essa chuva é só para talvez deixar o visual da gameplay melhor",
+        Value = false,
+        Callback = function(v)
+            RainEnabled = v
+            
+            if v then
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Chuva/refs/heads/main/README.md"))()
+                Window:Notify({
+                    Title = "CHUVA",
+                    Desc = "CHUVA ativada!",
+                    Time = 3
+                })
+            else
+                for _, drop in pairs(workspace:GetChildren()) do
+                    if drop:IsA("Part") and drop.Size.Y < 5 and drop.Transparency > 0.4 then
+                        drop:Destroy()
+                    end
+                end
+                
+                local lighting = game:GetService("Lighting")
+                for _, sky in pairs(lighting:GetChildren()) do
+                    if sky:IsA("Sky") then
+                        sky:Destroy()
+                    end
+                end
+                
+                lighting.FogStart = 0
+                lighting.FogEnd = 100000
+                lighting.Brightness = 2
+                
+                Window:Notify({
+                    Title = "CHUVA",
+                    Desc = "CHUVA desativada!",
+                    Time = 3
+                })
+            end
+        end
+    })
+    
     FPSBoost:Section({Title = "CAMERA"})
     
     local FOVValue = 0.5
@@ -440,7 +425,6 @@ local FPSBoost = Window:Tab({Title = "SETTINGS", Icon = "settings"}) do
         Rounding = 1,
         Value = 50,
         Callback = function(val)
-            -- INVERTIDO: 100 = perto (1), 0 = longe (0)
             FOVValue = (100 - val) / 100
         end
     })

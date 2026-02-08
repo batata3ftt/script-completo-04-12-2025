@@ -389,6 +389,19 @@ local FPSBoost = Window:Tab({Title = "SETTINGS", Icon = "settings"}) do
             end
         end
     })
+
+FPSBoost:Button({
+    Title = "TEAM SELECT",
+    Desc = "info: escolha seu time azul ou vermelho",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Sele-o-de-time/refs/heads/main/README.md"))()
+        Window:Notify({
+            Title = "TEAM SELECT",
+            Desc = "Tela de seleção aberta!",
+            Time = 3
+        })
+    end
+})
     
     FPSBoost:Section({Title = "CAMERA"})
     

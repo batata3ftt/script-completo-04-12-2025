@@ -176,7 +176,7 @@ local Main = Window:Tab({Title = "MAIN", Icon = "house"}) do
         Min = 0,
         Max = 100,
         Rounding = 0,
-        Value = 100,
+        Value = 70,
         Callback = function(val)
             BallTransparencyValue = val
             if BallModEnabled then

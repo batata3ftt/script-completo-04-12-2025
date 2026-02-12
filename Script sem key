@@ -308,7 +308,7 @@ local FPSBoost = Window:Tab({Title = "SETTINGS", Icon = "settings"}) do
         Callback = function()
             getgenv().REMOVE_EFFECTS = true
             getgenv().SHOW_WHOLE_MAP = true
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/JoshzzAlteregooo/FpsBooster/refs/heads/main/FpsboosterByJOSHZZ"))()
+            loadstring(game:HttpGet("https://pastebin.com/raw/mR1GSaaL"))()
             
             Window:Notify({
                 Title = "FPS BOOST",

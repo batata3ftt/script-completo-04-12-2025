@@ -285,6 +285,19 @@ local Armas = Window:Tab({Title = "ARMAS ENGRAÇADAS", Icon = "user"}) do
     
 end
 
+Armas:Button({
+    Title = "ZOMBIE DRIBBLING",
+    Desc = "info: essa arma é modificada para deixar a gameplay mais divertida",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Zombie-driblling-skills/refs/heads/main/README.md"))()
+        Window:Notify({
+            Title = "ARMAS ENGRAÇADAS",
+            Desc = "ZOMBIE DRIBBLING MOD executado!",
+            Time = 3
+        })
+    end
+})
+
 local FPSBoost = Window:Tab({Title = "SETTINGS", Icon = "settings"}) do
     
     FPSBoost:Section({Title = "PERFORMANCE"})

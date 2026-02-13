@@ -1,9 +1,9 @@
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
 
 local Window = Library:Window({
-    Title = "BATATA HUB",
-    Desc = "criado por batata",
-    Icon = 140370248943220,
+    Title = "SYLAX HUB",
+    Desc = "criado por nonex",
+    Icon = 86801451021941,
     Theme = "Amethyst",
     Config = {
         Keybind = Enum.KeyCode.LeftControl,
@@ -11,7 +11,7 @@ local Window = Library:Window({
     },
     CloseUIButton = {
         Enabled = true,
-        Text = "BATATA HUB"
+        Text = "SYLAX HUB"
     }
 })
 
@@ -458,7 +458,7 @@ FPSBoost:Button({
 end
 
 Window:Notify({
-    Title = "BATATA HUB",
+    Title = "SYLAX HUB",
     Desc = "Script carregado com sucesso!",
     Time = 4
 })

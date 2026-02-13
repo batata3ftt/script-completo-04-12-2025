@@ -298,6 +298,20 @@ Armas:Button({
     end
 })
 
+Armas:Button({
+    Title = "NEL ISAGI",
+    Desc = "info: essa arma é modificada para deixar a gameplay mais divertida",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Nel-isagi-mod/refs/heads/main/README.md"))()
+
+        Window:Notify({
+            Title = "ARMAS ENGRAÇADAS",
+            Desc = "NEL ISAGI MOD executado!",
+            Time = 3
+        })
+    end
+})
+
 local FPSBoost = Window:Tab({Title = "SETTINGS", Icon = "settings"}) do
     
     FPSBoost:Section({Title = "PERFORMANCE"})

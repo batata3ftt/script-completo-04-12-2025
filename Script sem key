@@ -617,7 +617,10 @@ local Main = Window:Tab({Title = "MAIN", Icon = "house"})
         Rounding = 0,
         Value = 34,
         Callback = function(val)
-            BallSizeV if v then
+            BallSizeV        Value = false,
+        Callback = function(v)
+            RainEnabled = v
+            if v then
                 loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Chuva/refs/heads/main/README.md"))()
                 Window:Notify({Title = "CHUVA", Desc = "CHUVA ativada!", Time = 3})
             else

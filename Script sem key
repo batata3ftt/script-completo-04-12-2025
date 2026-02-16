@@ -1,4 +1,6 @@
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
+local _u = "https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/"
+_u = _u .. "X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"
+local Library = loadstring(game:HttpGet(_u))()
 
 local Window = Library:Window({
     Title = "SYLAX HUB",
@@ -104,41 +106,26 @@ local function playCustomSound(soundId)
     sound.Ended:Connect(function() sound:Destroy() end)
 end
 
--- ========== RAGDOLL SOUND MELHORADO ==========
--- Usa TackleHit_RE como trigger principal (mais confiavel)
--- + fallback por StateChanged/BallSocketConstraint
-
-local soundPlayed = {}       -- [userId] = bool
-local soundCooldown = {}     -- [userId] = tick()
-local SOUND_COOLDOWN = 2.5   -- segundos entre sons do mesmo player
-
--- Janela de tempo apos tackle para aceitar ragdoll
+local soundCooldown = {}
+local SOUND_COOLDOWN = 2.5
 local lastTackleHit = 0
 local TACKLE_WINDOW = 1.5
 
--- Escuta TackleHit_RE â€” dispara quando QUALQUER tackle acerta alguem
 pcall(function()
     local TackleHitRE = ReplicatedStorage:WaitForChild("TackleHit_RE", 10)
     if TackleHitRE then
-        TackleHitRE.OnClientEvent:Connect(function(...)
-            -- Verifica se o player local foi o causador
-            -- (a bola precisa estar proxima OU o player estava perto de alguem)
-            local char = player.Character
-            if not char then return end
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
-
-            -- Marca janela de tackle para qualquer ragdoll proxima
+        TackleHitRE.OnClientEvent:Connect(function()
+            if not player.Character then return end
+            if not player.Character:FindFirstChild("HumanoidRootPart") then return end
             lastTackleHit = tick()
         end)
     end
 end)
 
--- Tambem monitora Tackle_RE para ampliar a janela
 pcall(function()
     local TackleRE = ReplicatedStorage:WaitForChild("Tackle_RE", 10)
     if TackleRE then
-        TackleRE.OnClientEvent:Connect(function(...)
+        TackleRE.OnClientEvent:Connect(function()
             lastTackleHit = tick()
         end)
     end
@@ -158,33 +145,27 @@ end
 local function monitorRagdollCharacter(p, character)
     if p == player then return end
     local humanoid = character:WaitForChild("Humanoid")
-    soundPlayed[p.UserId] = false
 
     local function tryPlay()
         if ragdollSoundId == "" then return end
         if not isRecentTackle() then return end
         if not canPlayForPlayer(p) then return end
-
         soundCooldown[p.UserId] = tick()
-        soundPlayed[p.UserId] = true
         playCustomSound(ragdollSoundId)
-
         task.delay(SOUND_COOLDOWN, function()
-            soundPlayed[p.UserId] = false
+            soundCooldown[p.UserId] = nil
         end)
     end
 
-    -- Metodo 1: StateChanged (mais direto)
     humanoid.StateChanged:Connect(function(oldState, newState)
-        if (newState == Enum.HumanoidStateType.Ragdoll or
-            newState == Enum.HumanoidStateType.FallingDown) and
-           oldState ~= Enum.HumanoidStateType.Ragdoll and
-           oldState ~= Enum.HumanoidStateType.FallingDown then
+        if (newState == Enum.HumanoidStateType.Ragdoll
+            or newState == Enum.HumanoidStateType.FallingDown)
+        and oldState ~= Enum.HumanoidStateType.Ragdoll
+        and oldState ~= Enum.HumanoidStateType.FallingDown then
             tryPlay()
         end
     end)
 
-    -- Metodo 2: BoolValue ragdoll
     local function checkBool(obj)
         if obj:IsA("BoolValue") and obj.Name:lower():find("ragdoll") then
             local lastVal = obj.Value
@@ -195,24 +176,24 @@ local function monitorRagdollCharacter(p, character)
         end
     end
 
-    for _, obj in pairs(character:GetDescendants()) do checkBool(obj) end
+    for _, obj in pairs(character:GetDescendants()) do
+        checkBool(obj)
+    end
+
     character.DescendantAdded:Connect(function(obj)
         checkBool(obj)
-        -- Metodo 3: BallSocketConstraint = ragdoll fisico
         if obj:IsA("BallSocketConstraint") then tryPlay() end
     end)
 
-    -- Metodo 4: Atributo Ragdoll
     pcall(function()
-        local lastRagdollAttr = false
+        local lastAttr = false
         character:GetAttributeChangedSignal("Ragdoll"):Connect(function()
             local val = character:GetAttribute("Ragdoll")
-            if val == true and lastRagdollAttr == false then tryPlay() end
-            lastRagdollAttr = val
+            if val == true and lastAttr == false then tryPlay() end
+            lastAttr = val
         end)
     end)
 
-    -- Metodo 5: Heartbeat monitorando state (fallback)
     local wasRagdoll = false
     local hbConn
     hbConn = RunService.Heartbeat:Connect(function()
@@ -221,8 +202,8 @@ local function monitorRagdollCharacter(p, character)
             return
         end
         local state = humanoid:GetState()
-        local isNow = state == Enum.HumanoidStateType.Ragdoll or
-                      state == Enum.HumanoidStateType.FallingDown
+        local isNow = (state == Enum.HumanoidStateType.Ragdoll)
+            or (state == Enum.HumanoidStateType.FallingDown)
         if isNow and not wasRagdoll then
             wasRagdoll = true
             tryPlay()
@@ -249,22 +230,22 @@ Players.PlayerAdded:Connect(function(p)
     end)
 end)
 
--- ========== GOAL SOUND ==========
-
 pcall(function()
     local GoalRE = ReplicatedStorage:WaitForChild("GoalRE", 10)
     if GoalRE then
         GoalRE.OnClientEvent:Connect(function(scorerName)
             if goalSoundId == "" then return end
             local isMe = false
-            if typeof(scorerName) == "string" and scorerName == player.Name then isMe = true end
-            if typeof(scorerName) == "Instance" and scorerName:IsA("Player") and scorerName == player then isMe = true end
+            if typeof(scorerName) == "string" then
+                if scorerName == player.Name then isMe = true end
+            end
+            if typeof(scorerName) == "Instance" then
+                if scorerName:IsA("Player") and scorerName == player then isMe = true end
+            end
             if isMe then playCustomSound(goalSoundId) end
         end)
     end
 end)
-
--- ========== CUSTOM COLOR SYSTEM ==========
 
 local COLORS = {
     ["BLACK"]        = Color3.fromRGB(0,   0,   0),
@@ -293,24 +274,23 @@ local function getChosenSeq()
     return ColorSequence.new(selectedColor)
 end
 
--- Bola fica com cor original
 local function isBallPart(v)
     local p = v.Parent
     while p and p ~= Workspace do
         if p.Name:lower() == "ball" then return true end
         p = p.Parent
     end
-    return v.Name == "Ball" and v:IsA("BasePart")
+    if v.Name == "Ball" and v:IsA("BasePart") then return true end
+    return false
 end
 
--- GK fica com cor original
 local function isGKDescendant(v)
     for _, p in pairs(Players:GetPlayers()) do
         if p.Character and v:IsDescendantOf(p.Character) then
-            if p.Character:GetAttribute("IsGK") or
-               p.Character:GetAttribute("GK") or
-               p.Name:lower():find("gk") or
-               p.Name:lower():find("keeper") then
+            if p.Character:GetAttribute("IsGK")
+            or p.Character:GetAttribute("GK")
+            or p.Name:lower():find("gk")
+            or p.Name:lower():find("keeper") then
                 return true
             end
         end
@@ -318,7 +298,6 @@ local function isGKDescendant(v)
     return false
 end
 
--- Ignora mapa estatico (nao e char, nao e skill, nao e vfx)
 local function isStaticMap(v)
     if v:IsA("Terrain") or v:IsA("Sky") then return true end
     local top = v
@@ -326,11 +305,9 @@ local function isStaticMap(v)
         top = top.Parent
     end
     if top.Parent ~= Workspace then return false end
-    -- Se for um char de qualquer player, nao e mapa
     for _, p in pairs(Players:GetPlayers()) do
         if p.Character and top == p.Character then return false end
     end
-    -- Verifica se e mapa pelo nome (nao contem palavras de skill/vfx)
     local tname = top.Name:lower()
     local isVFX = tname:find("vfx") or tname:find("effect") or tname:find("skill")
         or tname:find("fx") or tname:find("goal") or tname:find("explosion")
@@ -343,14 +320,9 @@ end
 
 local function applyColorToObj(v)
     if not v or not v.Parent then return end
-    -- Bola preservada
     if isBallPart(v) then return end
-    -- GK preservado
     if isGKDescendant(v) then return end
-    -- Mapa estatico ignorado
     if isStaticMap(v) then return end
-
-    -- Aplica cor em TUDO mais (seu char, chars inimigos, skills de todos)
     pcall(function()
         if v:IsA("ParticleEmitter") then
             v.Color = getChosenSeq()
@@ -375,28 +347,24 @@ local function applyColorToObj(v)
 end
 
 local function isEffectObj(v)
-    return v:IsA("ParticleEmitter") or v:IsA("Trail") or
-           v:IsA("Beam") or v:IsA("Highlight")
+    return v:IsA("ParticleEmitter") or v:IsA("Trail")
+        or v:IsA("Beam") or v:IsA("Highlight")
 end
 
 local function startColorSkill()
-    -- Ego cor escolhida
     pcall(function()
         local r = math.floor(selectedColor.R * 255)
         local g = math.floor(selectedColor.G * 255)
         local b = math.floor(selectedColor.B * 255)
         player.Ego.Value = r .. "," .. g .. "," .. b
     end)
-
-    -- Flow bar cor escolhida
     pcall(function()
-        local flowBar = player.PlayerGui:WaitForChild("MainmenuGui")
-            :WaitForChild("Frame2"):WaitForChild("Flow-bar-inside")
-        flowBar.BackgroundColor3 = getChosenColor()
-        flowBar.BorderColor3 = getChosenColor()
+        local gui = player.PlayerGui:WaitForChild("MainmenuGui")
+        local f2 = gui:WaitForChild("Frame2")
+        local fb = f2:WaitForChild("Flow-bar-inside")
+        fb.BackgroundColor3 = getChosenColor()
+        fb.BorderColor3 = getChosenColor()
     end)
-
-    -- Loop ego e flow bar
     task.spawn(function()
         while colorSkillEnabled do
             pcall(function()
@@ -422,8 +390,6 @@ local function startColorSkill()
             task.wait(0.3)
         end
     end)
-
-    -- Scan inicial workspace (em lotes pra nao travar)
     task.spawn(function()
         local all = Workspace:GetDescendants()
         for i = 1, #all, 150 do
@@ -435,8 +401,6 @@ local function startColorSkill()
             task.wait()
         end
     end)
-
-    -- Scan ReplicatedStorage (skills ficam aqui antes de serem clonadas)
     task.spawn(function()
         local all = ReplicatedStorage:GetDescendants()
         for i = 1, #all, 150 do
@@ -448,24 +412,18 @@ local function startColorSkill()
             task.wait()
         end
     end)
-
-    -- Tempo real: qualquer novo efeito no workspace
     local wConn = Workspace.DescendantAdded:Connect(function(v)
         if colorSkillEnabled and isEffectObj(v) then
             task.defer(function() applyColorToObj(v) end)
         end
     end)
     table.insert(colorConnections, wConn)
-
-    -- Tempo real: qualquer novo efeito no ReplicatedStorage
     local rConn = ReplicatedStorage.DescendantAdded:Connect(function(v)
         if colorSkillEnabled and isEffectObj(v) then
             task.defer(function() applyColorToObj(v) end)
         end
     end)
     table.insert(colorConnections, rConn)
-
-    -- Monitora chars de todos os players (inclusive inimigos)
     for _, p in pairs(Players:GetPlayers()) do
         if p.Character then
             local pConn = p.Character.DescendantAdded:Connect(function(v)
@@ -476,9 +434,7 @@ local function startColorSkill()
             table.insert(colorConnections, pConn)
         end
     end
-
-    -- Quando novo player entra, monitora o char dele tambem
-    local newPlayerConn = Players.PlayerAdded:Connect(function(p)
+    local npConn = Players.PlayerAdded:Connect(function(p)
         p.CharacterAdded:Connect(function(char)
             task.wait(0.5)
             local pConn = char.DescendantAdded:Connect(function(v)
@@ -489,7 +445,7 @@ local function startColorSkill()
             table.insert(colorConnections, pConn)
         end)
     end)
-    table.insert(colorConnections, newPlayerConn)
+    table.insert(colorConnections, npConn)
 end
 
 local function stopColorSkill()
@@ -499,7 +455,6 @@ local function stopColorSkill()
         end)
     end
     colorConnections = {}
-
     pcall(function() player.Ego.Value = "NONE" end)
     pcall(function()
         local gui = player.PlayerGui:FindFirstChild("MainmenuGui")
@@ -532,162 +487,417 @@ local function setColor(nome)
     end
 end
 
--- ========== TABS ==========
+-- ===== TAB MAIN =====
 
 local Main = Window:Tab({Title = "MAIN", Icon = "house"})
-    Main:Section({Title = "MOVEMENT"})
 
-    Main:Toggle({
-        Title = "WALKSPEED",
-        Desc = "info: recomendo 37 de speed se quiser disfarcar",
-        Value = false,
-        Callback = function(v)
-            WalkSpeedEnabled = v
-            applyValues()
+Main:Section({Title = "MOVEMENT"})
+
+Main:Toggle({
+    Title = "WALKSPEED",
+    Desc = "info: recomendo 37 de speed se quiser disfarcar",
+    Value = false,
+    Callback = function(v)
+        WalkSpeedEnabled = v
+        applyValues()
+    end
+})
+
+Main:Slider({
+    Title = "WalkSpeed",
+    Min = 0,
+    Max = 100,
+    Rounding = 0,
+    Value = 16,
+    Callback = function(val)
+        WalkSpeedValue = val
+        applyValues()
+    end
+})
+
+Main:Toggle({
+    Title = "JUMPOWER",
+    Desc = "info: recomendo 66 de power se quiser disfarcar",
+    Value = false,
+    Callback = function(v)
+        JumpPowerEnabled = v
+        applyValues()
+    end
+})
+
+Main:Slider({
+    Title = "JUMPOWER",
+    Min = 0,
+    Max = 100,
+    Rounding = 0,
+    Value = 50,
+    Callback = function(val)
+        JumpPowerValue = val
+        applyValues()
+    end
+})
+
+Main:Toggle({
+    Title = "NORAGDOLL",
+    Desc = "info: esse script tira o seu ragdoll do CHUTE e de TACKLE",
+    Value = false,
+    Callback = function(v)
+        if v then
+            local ur = "https://raw.githubusercontent.com/batata3ftt/Noragdoll/refs/heads/main/README.md"
+            loadstring(game:HttpGet(ur))()
+            Window:Notify({Title = "NORAGDOLL", Desc = "NORAGDOLL ativado!", Time = 3})
+        else
+            Window:Notify({Title = "NORAGDOLL", Desc = "NORAGDOLL desativado!", Time = 3})
         end
-    })
+    end
+})
 
-    Main:Slider({
-        Title = "WalkSpeed",
-        Min = 0,
-        Max = 100,
-        Rounding = 0,
-        Value = 16,
-        Callback = function(val)
-            WalkSpeedValue = val
-            applyValues()
+Main:Section({Title = "BALL MODIFICATIONS"})
+
+Main:Toggle({
+    Title = "BALL HITBOX",
+    Desc = "info: use essa hitbox mais pro tackle",
+    Value = false,
+    Callback = function(v)
+        BallModEnabled = v
+        if v then
+            local ball = Workspace:FindFirstChild("Ball")
+            if ball then applyBallProperties(ball) end
         end
-    })
+    end
+})
 
-    Main:Toggle({
-        Title = "JUMPOWER",
-        Desc = "info: recomendo 66 de power se quiser disfarcar",
-        Value = false,
-        Callback = function(v)
-            JumpPowerEnabled = v
-            applyValues()
+Main:Slider({
+    Title = "BALL SIZE",
+    Min = 0,
+    Max = 100,
+    Rounding = 0,
+    Value = 34,
+    Callback = function(val)
+        BallSizeValue = val
+        if BallModEnabled then
+            local ball = Workspace:FindFirstChild("Ball")
+            if ball then applyBallProperties(ball) end
         end
-    })
+    end
+})
 
-    Main:Slider({
-        Title = "JUMPOWER",
-        Min = 0,
-        Max = 100,
-        Rounding = 0,
-        Value = 50,
-        Callback = function(val)
-            JumpPowerValue = val
-            applyValues()
+Main:Slider({
+    Title = "BALL TRANSPARENCE",
+    Min = 0,
+    Max = 100,
+    Rounding = 0,
+    Value = 70,
+    Callback = function(val)
+        BallTransparencyValue = val
+        if BallModEnabled then
+            local ball = Workspace:FindFirstChild("Ball")
+            if ball then applyBallProperties(ball) end
         end
-    })
+    end
+})
 
-    Main:Toggle({
-        Title = "NORAGDOLL",
-        Desc = "info: esse script tira o seu ragdoll do CHUTE e de TACKLE",
-        Value = false,
-        Callback = function(v)
-            if v then
-                loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Noragdoll/refs/heads/main/README.md"))()
-                Window:Notify({Title = "NORAGDOLL", Desc = "NORAGDOLL ativado!", Time = 3})
-            else
-                Window:Notify({Title = "NORAGDOLL", Desc = "NORAGDOLL desativado!", Time = 3})
+-- ===== TAB TECHS =====
+
+local Techs = Window:Tab({Title = "TECHS", Icon = "tag"})
+
+Techs:Section({Title = "TECNICAS"})
+
+Techs:Button({
+    Title = "AIR DRIBLE",
+    Desc = "info: o script tem alguns bugs mais funciona perfeitamente",
+    Callback = function()
+        local ur = "https://raw.githubusercontent.com/batata3ftt/Air-drible-beta/refs/heads/main/Air%20drible%20beta"
+        loadstring(game:HttpGet(ur))()
+        Window:Notify({Title = "Techs", Desc = "AIR DRIBLE executado!", Time = 3})
+    end
+})
+
+Techs:Button({
+    Title = "AIMBOT BALL (BETA)",
+    Desc = "info: o aimbot nao gruda com a bola parada",
+    Callback = function()
+        local ur = "https://raw.githubusercontent.com/batata3ftt/AIMBOT-BALL-OBFUSCADO-/refs/heads/main/"
+        ur = ur .. "AIMBOT%20BALL%20OBFUSCADO"
+        loadstring(game:HttpGet(ur))()
+        Window:Notify({Title = "Techs", Desc = "AIM BOT BALL executado!", Time = 3})
+    end
+})
+
+Techs:Button({
+    Title = "AUTO GK (BETA)",
+    Desc = "info: recomendo usar sem shift lock",
+    Callback = function()
+        local ur = "https://raw.githubusercontent.com/batata3ftt/AUTO-GK-OBFUSCADO-/refs/heads/main/AUTO%20GK"
+        loadstring(game:HttpGet(ur))()
+        Window:Notify({Title = "Techs", Desc = "AUTO GK executado!", Time = 3})
+    end
+})
+
+-- ===== TAB ARMAS =====
+
+local Armas = Window:Tab({Title = "ARMAS ENGRACADAS", Icon = "user"})
+
+Armas:Section({Title = "ARMAS MODIFICADAS"})
+
+Armas:Button({
+    Title = "EMPERROR",
+    Desc = "info: essa arma e modificada para deixar a gameplay mais divertida",
+    Callback = function()
+        local ur = "https://raw.githubusercontent.com/batata3ftt/Script-skill-meme-completar-emperor/"
+        ur = ur .. "refs/heads/main/Skill%20meme%20emperor"
+        loadstring(game:HttpGet(ur))()
+        Window:Notify({Title = "ARMAS ENGRACADAS", Desc = "skills memes + aura", Time = 3})
+    end
+})
+
+Armas:Button({
+    Title = "ZOMBIE DRIBBLING",
+    Desc = "info: essa arma e modificada para deixar a gameplay mais divertida",
+    Callback = function()
+        local ur = "https://raw.githubusercontent.com/batata3ftt/Zombie-driblling-skills/refs/heads/main/README.md"
+        loadstring(game:HttpGet(ur))()
+        Window:Notify({Title = "ARMAS ENGRACADAS", Desc = "ZOMBIE DRIBBLING MOD executado!", Time = 3})
+    end
+})
+
+Armas:Button({
+    Title = "NEL ISAGI",
+    Desc = "info: essa arma e modificada para deixar a gameplay mais divertida",
+    Callback = function()
+        local ur = "https://raw.githubusercontent.com/batata3ftt/Nel-isagi-mod/refs/heads/main/README.md"
+        loadstring(game:HttpGet(ur))()
+        Window:Notify({Title = "ARMAS ENGRACADAS", Desc = "NEL ISAGI MOD executado!", Time = 3})
+    end
+})
+
+-- ===== TAB MISC =====
+
+local Misc = Window:Tab({Title = "MISC", Icon = "star"})
+
+Misc:Section({Title = "CUSTOM"})
+
+Misc:Textbox({
+    Title = "ID CUSTOMIZE RAGDOLL",
+    Desc = "info: bote o id de um Audio para quando alguem tomar ragdoll",
+    Placeholder = savedRagdollId ~= "" and savedRagdollId or "Ex: 137822897777384",
+    Callback = function(val)
+        local id = tostring(val):match("%d+")
+        if id and id ~= "0" then
+            ragdollSoundId = id
+            if writefile then
+                pcall(function() writefile("sylax_ragdoll_id.txt", id) end)
             end
+            Window:Notify({Title = "RAGDOLL ID", Desc = "ID salvo: " .. id, Time = 3})
+        else
+            ragdollSoundId = ""
+            Window:Notify({Title = "RAGDOLL ID", Desc = "ID invalido!", Time = 3})
         end
-    })
+    end
+})
 
-    Main:Section({Title = "BALL MODIFICATIONS"})
-
-    Main:Toggle({
-        Title = "BALL HITBOX",
-        Desc = "info: use essa hitbox mais pro tackle",
-        Value = false,
-        Callback = function(v)
-            BallModEnabled = v
-            if v then
-                local ball = Workspace:FindFirstChild("Ball")
-                if ball then applyBallProperties(ball) end
+Misc:Textbox({
+    Title = "ID CUSTOMIZE GOAL",
+    Desc = "info: bote o ID do som para quando voce fazer gol",
+    Placeholder = savedGoalId ~= "" and savedGoalId or "Ex: 137822897777384",
+    Callback = function(val)
+        local id = tostring(val):match("%d+")
+        if id and id ~= "0" then
+            goalSoundId = id
+            if writefile then
+                pcall(function() writefile("sylax_goal_id.txt", id) end)
             end
+            Window:Notify({Title = "GOAL ID", Desc = "ID salvo: " .. id, Time = 3})
+        else
+            goalSoundId = ""
+            Window:Notify({Title = "GOAL ID", Desc = "ID invalido!", Time = 3})
         end
-    })
+    end
+})
 
-    Main:Slider({
-        Title = "BALL SIZE",
-        Min = 0,
-        Max = 100,
-        Rounding = 0,
-        Value = 34,
-        Callback = function(val)
-            BallSizeV        Value = false,
-        Callback = function(v)
-            RainEnabled = v
-            if v then
-                loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Chuva/refs/heads/main/README.md"))()
-                Window:Notify({Title = "CHUVA", Desc = "CHUVA ativada!", Time = 3})
-            else
-                for _, drop in pairs(Workspace:GetChildren()) do
-                    if drop:IsA("Part") and drop.Size.Y < 5 and drop.Transparency > 0.4 then
-                        drop:Destroy()
-                    end
+Misc:Section({Title = "COLOR SKILL"})
+
+Misc:Textbox({
+    Title = "ESCOLHER COR",
+    Desc = "BLACK | BLUE | ROXO | LARANJA | GREEN (RIN) | RED (NEON)"
+        .. " | GREEN | PINK (NEON) | WHITE (NEON) | GREEN (AIKU) | YELLOW | RED (BLOOD)",
+    Placeholder = "Ex: BLUE",
+    Callback = function(val)
+        local nome = val:upper()
+        if COLORS[nome] then
+            setColor(nome)
+        else
+            Window:Notify({
+                Title = "COR INVALIDA",
+                Desc = "Tente: BLACK, BLUE, ROXO, LARANJA...",
+                Time = 3
+            })
+        end
+    end
+})
+
+Misc:Toggle({
+    Title = "CUSTOM COLOR SKILL (BETA)",
+    Desc = "info: aplica a cor escolhida em TODAS as weapons e skills do jogo",
+    Value = false,
+    Callback = function(v)
+        colorSkillEnabled = v
+        if v then
+            startColorSkill()
+            Window:Notify({Title = "CUSTOM COLOR", Desc = "Ativado!", Time = 3})
+        else
+            stopColorSkill()
+            Window:Notify({Title = "CUSTOM COLOR", Desc = "Desativado!", Time = 3})
+        end
+    end
+})
+
+-- ===== TAB SETTINGS =====
+
+local FPSBoost = Window:Tab({Title = "SETTINGS", Icon = "settings"})
+
+FPSBoost:Section({Title = "PERFORMANCE"})
+
+FPSBoost:Button({
+    Title = "FPS BOOST",
+    Desc = "info: vai travar um pouco mais e so pra carregar o script",
+    Callback = function()
+        getgenv().REMOVE_EFFECTS = true
+        getgenv().SHOW_WHOLE_MAP = true
+        local ur = "https://raw.githubusercontent.com/batata3ftt/Fps-boost/refs/heads/main/README.md"
+        loadstring(game:HttpGet(ur))()
+        Window:Notify({Title = "FPS BOOST", Desc = "BOOST Executado!", Time = 3})
+    end
+})
+
+FPSBoost:Section({Title = "VISUAL"})
+
+local MetaVisionEnabled = false
+
+FPSBoost:Toggle({
+    Title = "META VISION",
+    Desc = "info: ative a meta visao e receba informacoes sobre os jogadores",
+    Value = false,
+    Callback = function(v)
+        MetaVisionEnabled = v
+        if v then
+            player:SetAttribute("Metavision", true)
+            Window:Notify({Title = "META VISION", Desc = "META VISION ativada!", Time = 3})
+        else
+            player:SetAttribute("Metavision", false)
+            Window:Notify({Title = "META VISION", Desc = "META VISION desativada!", Time = 3})
+        end
+    end
+})
+
+FPSBoost:Toggle({
+    Title = "ESP BALL",
+    Desc = "info: a bola fica destacada no campo",
+    Value = false,
+    Callback = function(v)
+        ESPEnabled = v
+        if v then
+            local ur = "https://raw.githubusercontent.com/batata3ftt/BALL-predict/refs/heads/main/BALL%20predict"
+            ESPScript = loadstring(game:HttpGet(ur))()
+            Window:Notify({Title = "ESP BALL", Desc = "ESP da bola ativado!", Time = 3})
+        else
+            local marker = Workspace:FindFirstChild("PredictionMarker")
+            if marker then marker:Destroy() end
+            local espGui = player.PlayerGui:FindFirstChild("BallESP")
+            if espGui then espGui:Destroy() end
+            Window:Notify({Title = "ESP BALL", Desc = "ESP da bola desativado!", Time = 3})
+        end
+    end
+})
+
+FPSBoost:Button({
+    Title = "SHADER",
+    Desc = "info: esse Shader e apenas para deixar a gameplay mais bonita",
+    Callback = function()
+        loadstring(game:HttpGet("https://pastebin.com/raw/Zpaf00Nu"))()
+        Window:Notify({Title = "SHADER", Desc = "SHADER ativado!", Time = 3})
+    end
+})
+
+local RainEnabled = false
+
+FPSBoost:Toggle({
+    Title = "CHUVA",
+    Desc = "info: essa chuva e so para talvez deixar o visual da gameplay melhor",
+    Value = false,
+    Callback = function(v)
+        RainEnabled = v
+        if v then
+            local ur = "https://raw.githubusercontent.com/batata3ftt/Chuva/refs/heads/main/README.md"
+            loadstring(game:HttpGet(ur))()
+            Window:Notify({Title = "CHUVA", Desc = "CHUVA ativada!", Time = 3})
+        else
+            for _, drop in pairs(Workspace:GetChildren()) do
+                if drop:IsA("Part") and drop.Size.Y < 5 and drop.Transparency > 0.4 then
+                    drop:Destroy()
                 end
-                local lighting = game:GetService("Lighting")
-                for _, sky in pairs(lighting:GetChildren()) do
-                    if sky:IsA("Sky") then sky:Destroy() end
+            end
+            local Lighting = game:GetService("Lighting")
+            for _, sky in pairs(Lighting:GetChildren()) do
+                if sky:IsA("Sky") then sky:Destroy() end
+            end
+            Lighting.FogStart = 0
+            Lighting.FogEnd = 100000
+            Lighting.Brightness = 2
+            Window:Notify({Title = "CHUVA", Desc = "CHUVA desativada!", Time = 3})
+        end
+    end
+})
+
+FPSBoost:Button({
+    Title = "TEAM SELECT",
+    Desc = "info: escolha seu time azul ou vermelho",
+    Callback = function()
+        local ur = "https://raw.githubusercontent.com/batata3ftt/Sele-o-de-time/refs/heads/main/README.md"
+        loadstring(game:HttpGet(ur))()
+        Window:Notify({Title = "TEAM SELECT", Desc = "Tela de selecao aberta!", Time = 3})
+    end
+})
+
+FPSBoost:Section({Title = "CAMERA"})
+
+local FOVValue = 0.5
+local FOVEnabled = false
+local FOVConnection = nil
+
+FPSBoost:Toggle({
+    Title = "FOV",
+    Desc = "info: mexa na distancia da sua visao",
+    Value = false,
+    Callback = function(v)
+        FOVEnabled = v
+        if v then
+            FOVConnection = RunService.RenderStepped:Connect(function()
+                if FOVEnabled then
+                    local cam = Workspace.CurrentCamera
+                    local cf = CFrame.new(0,0,0,FOVValue+0.001,0,0,0,FOVValue+0.001,0,0,0,1)
+                    cam.CoordinateFrame = cam.CoordinateFrame * cf
                 end
-                lighting.FogStart = 0
-                lighting.FogEnd = 100000
-                lighting.Brightness = 2
-                Window:Notify({Title = "CHUVA", Desc = "CHUVA desativada!", Time = 3})
+            end)
+        else
+            if FOVConnection then
+                FOVConnection:Disconnect()
+                FOVConnection = nil
             end
         end
-    })
+    end
+})
 
-    FPSBoost:Button({
-        Title = "TEAM SELECT",
-        Desc = "info: escolha seu time azul ou vermelho",
-        Callback = function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Sele-o-de-time/refs/heads/main/README.md"))()
-            Window:Notify({Title = "TEAM SELECT", Desc = "Tela de selecao aberta!", Time = 3})
-        end
-    })
-
-    FPSBoost:Section({Title = "CAMERA"})
-
-    local FOVValue = 0.5
-    local FOVEnabled = false
-    local FOVConnection = nil
-
-    FPSBoost:Toggle({
-        Title = "FOV",
-        Desc = "info: mexa na distancia da sua visao",
-        Value = false,
-        Callback = function(v)
-            FOVEnabled = v
-            if v then
-                FOVConnection = RunService.RenderStepped:Connect(function()
-                    if FOVEnabled then
-                        Workspace.CurrentCamera.CoordinateFrame = Workspace.CurrentCamera.CoordinateFrame * CFrame.new(0,0,0,FOVValue+0.001,0,0,0,FOVValue+0.001,0,0,0,1)
-                    end
-                end)
-            else
-                if FOVConnection then
-                    FOVConnection:Disconnect()
-                    FOVConnection = nil
-                end
-            end
-        end
-    })
-
-    FPSBoost:Slider({
-        Title = "FOV VALUE",
-        Min = 0,
-        Max = 100,
-        Rounding = 1,
-        Value = 50,
-        Callback = function(val)
-            FOVValue = (100 - val) / 100
-        end
-    })
-end
+FPSBoost:Slider({
+    Title = "FOV VALUE",
+    Min = 0,
+    Max = 100,
+    Rounding = 1,
+    Value = 50,
+    Callback = function(val)
+        FOVValue = (100 - val) / 100
+    end
+})
 
 Window:Notify({
     Title = "SYLAX HUB",

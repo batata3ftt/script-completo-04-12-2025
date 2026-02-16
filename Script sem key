@@ -23,6 +23,7 @@ local BallSizeValue = 34
 local BallTransparencyValue = 1
 local BallModEnabled = false
 local ESPEnabled = false
+local ESPScript = nil
 
 local player = game.Players.LocalPlayer
 local Players = game:GetService("Players")
@@ -43,9 +44,9 @@ local goalSoundId = savedGoalId
 
 local function applyValues()
     if player.Character and player.Character:FindFirstChild("Humanoid") then
-        local h = player.Character.Humanoid
-        if WalkSpeedEnabled then h.WalkSpeed = WalkSpeedValue end
-        if JumpPowerEnabled then h.JumpPower = JumpPowerValue end
+        local humanoid = player.Character.Humanoid
+        if WalkSpeedEnabled then humanoid.WalkSpeed = WalkSpeedValue end
+        if JumpPowerEnabled then humanoid.JumpPower = JumpPowerValue end
     end
 end
 
@@ -81,7 +82,9 @@ Workspace.ChildAdded:Connect(function(child)
     end
 end)
 
-RunService.Heartbeat:Connect(function() applyValues() end)
+RunService.Heartbeat:Connect(function()
+    applyValues()
+end)
 
 player.CharacterAdded:Connect(function(character)
     character:WaitForChild("Humanoid")
@@ -101,106 +104,83 @@ local function playCustomSound(soundId)
     sound.Ended:Connect(function() sound:Destroy() end)
 end
 
--- ========== SISTEMA RAGDOLL MELHORADO ==========
+-- ========== RAGDOLL SOUND MELHORADO ==========
+-- Usa TackleHit_RE como trigger principal (mais confiavel)
+-- + fallback por StateChanged/BallSocketConstraint
 
--- Guarda quais players estao proximos de mim recentemente
-local recentContact = {}  -- [userId] = tick()
-local soundCooldown = {}  -- [userId] = tick() (evita spam)
-local CONTACT_WINDOW = 1.5  -- segundos de janela apos contato
-local SOUND_COOLDOWN = 3    -- cooldown entre sons do mesmo player
+local soundPlayed = {}       -- [userId] = bool
+local soundCooldown = {}     -- [userId] = tick()
+local SOUND_COOLDOWN = 2.5   -- segundos entre sons do mesmo player
 
-local function registerContact(targetPlayer)
-    if targetPlayer and targetPlayer ~= player then
-        recentContact[targetPlayer.UserId] = tick()
+-- Janela de tempo apos tackle para aceitar ragdoll
+local lastTackleHit = 0
+local TACKLE_WINDOW = 1.5
+
+-- Escuta TackleHit_RE â€” dispara quando QUALQUER tackle acerta alguem
+pcall(function()
+    local TackleHitRE = ReplicatedStorage:WaitForChild("TackleHit_RE", 10)
+    if TackleHitRE then
+        TackleHitRE.OnClientEvent:Connect(function(...)
+            -- Verifica se o player local foi o causador
+            -- (a bola precisa estar proxima OU o player estava perto de alguem)
+            local char = player.Character
+            if not char then return end
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+
+            -- Marca janela de tackle para qualquer ragdoll proxima
+            lastTackleHit = tick()
+        end)
     end
+end)
+
+-- Tambem monitora Tackle_RE para ampliar a janela
+pcall(function()
+    local TackleRE = ReplicatedStorage:WaitForChild("Tackle_RE", 10)
+    if TackleRE then
+        TackleRE.OnClientEvent:Connect(function(...)
+            lastTackleHit = tick()
+        end)
+    end
+end)
+
+local function isRecentTackle()
+    return (tick() - lastTackleHit) <= TACKLE_WINDOW
 end
 
-local function hadRecentContact(targetPlayer)
-    if not targetPlayer then return false end
-    local t = recentContact[targetPlayer.UserId]
-    if not t then return false end
-    return (tick() - t) <= CONTACT_WINDOW
-end
-
-local function canPlaySound(targetPlayer)
-    if not targetPlayer then return false end
-    local t = soundCooldown[targetPlayer.UserId]
+local function canPlayForPlayer(p)
+    if not p then return false end
+    local t = soundCooldown[p.UserId]
     if not t then return true end
     return (tick() - t) >= SOUND_COOLDOWN
 end
 
--- Monitora colisoes e animacoes do local player
-local function setupMyContactDetection()
-    local char = player.Character
-    if not char then return end
-
-    -- Detecta por TODAS as partes do corpo, nao so HRP
-    for _, part in pairs(char:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.Touched:Connect(function(hit)
-                if not hit or not hit.Parent then return end
-                local hitPlayer = Players:GetPlayerFromCharacter(hit.Parent)
-                if hitPlayer and hitPlayer ~= player then
-                    registerContact(hitPlayer)
-                end
-            end)
-        end
-    end
-
-    -- Tambem detecta por animacoes de tackle/shot
-    local humanoid = char:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        local animator = humanoid:FindFirstChildOfClass("Animator")
-        if animator then
-            animator.AnimationPlayed:Connect(function(track)
-                local name = track.Name:lower()
-                if name:find("tackle") or name:find("steal") or
-                   name:find("attack") or name:find("skill") or
-                   name:find("kick") or name:find("shot") or
-                   name:find("dribble") or name:find("grab") then
-                    -- Marca todos players proximos como contato recente
-                    local hrp = char:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        for _, p in pairs(Players:GetPlayers()) do
-                            if p ~= player and p.Character then
-                                local otherHrp = p.Character:FindFirstChild("HumanoidRootPart")
-                                if otherHrp then
-                                    local dist = (hrp.Position - otherHrp.Position).Magnitude
-                                    if dist <= 10 then
-                                        registerContact(p)
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end
-
--- Monitora ragdoll de outro player e toca som se eu causei
 local function monitorRagdollCharacter(p, character)
     if p == player then return end
     local humanoid = character:WaitForChild("Humanoid")
+    soundPlayed[p.UserId] = false
 
-    local function tryPlayRagdollSound()
+    local function tryPlay()
         if ragdollSoundId == "" then return end
-        if not hadRecentContact(p) then return end
-        if not canPlaySound(p) then return end
+        if not isRecentTackle() then return end
+        if not canPlayForPlayer(p) then return end
 
         soundCooldown[p.UserId] = tick()
-        recentContact[p.UserId] = nil -- limpa contato apos usar
+        soundPlayed[p.UserId] = true
         playCustomSound(ragdollSoundId)
+
+        task.delay(SOUND_COOLDOWN, function()
+            soundPlayed[p.UserId] = false
+        end)
     end
 
-    -- Metodo 1: StateChanged
+    -- Metodo 1: StateChanged (mais direto)
     humanoid.StateChanged:Connect(function(oldState, newState)
         if (newState == Enum.HumanoidStateType.Ragdoll or
             newState == Enum.HumanoidStateType.FallingDown) and
            oldState ~= Enum.HumanoidStateType.Ragdoll and
            oldState ~= Enum.HumanoidStateType.FallingDown then
-            tryPlayRagdollSound()
+            tryPlay()
         end
     end)
 
@@ -209,9 +189,7 @@ local function monitorRagdollCharacter(p, character)
         if obj:IsA("BoolValue") and obj.Name:lower():find("ragdoll") then
             local lastVal = obj.Value
             obj:GetPropertyChangedSignal("Value"):Connect(function()
-                if obj.Value == true and lastVal == false then
-                    tryPlayRagdollSound()
-                end
+                if obj.Value == true and lastVal == false then tryPlay() end
                 lastVal = obj.Value
             end)
         end
@@ -220,48 +198,39 @@ local function monitorRagdollCharacter(p, character)
     for _, obj in pairs(character:GetDescendants()) do checkBool(obj) end
     character.DescendantAdded:Connect(function(obj)
         checkBool(obj)
-        -- Metodo 3: BallSocketConstraint (fisico ragdoll)
-        if obj:IsA("BallSocketConstraint") then
-            tryPlayRagdollSound()
-        end
+        -- Metodo 3: BallSocketConstraint = ragdoll fisico
+        if obj:IsA("BallSocketConstraint") then tryPlay() end
     end)
 
     -- Metodo 4: Atributo Ragdoll
     pcall(function()
-        local lastVal = false
+        local lastRagdollAttr = false
         character:GetAttributeChangedSignal("Ragdoll"):Connect(function()
             local val = character:GetAttribute("Ragdoll")
-            if val == true and lastVal == false then
-                tryPlayRagdollSound()
-            end
-            lastVal = val
+            if val == true and lastRagdollAttr == false then tryPlay() end
+            lastRagdollAttr = val
         end)
     end)
 
-    -- Metodo 5: Heartbeat monitorando state
+    -- Metodo 5: Heartbeat monitorando state (fallback)
     local wasRagdoll = false
-    local conn = RunService.Heartbeat:Connect(function()
-        if not character.Parent then return end
+    local hbConn
+    hbConn = RunService.Heartbeat:Connect(function()
+        if not character.Parent then
+            hbConn:Disconnect()
+            return
+        end
         local state = humanoid:GetState()
         local isNow = state == Enum.HumanoidStateType.Ragdoll or
                       state == Enum.HumanoidStateType.FallingDown
         if isNow and not wasRagdoll then
             wasRagdoll = true
-            tryPlayRagdollSound()
+            tryPlay()
         elseif not isNow then
             wasRagdoll = false
         end
     end)
 end
-
--- Setup inicial
-task.wait(1)
-setupMyContactDetection()
-
-player.CharacterAdded:Connect(function(char)
-    task.wait(0.5)
-    setupMyContactDetection()
-end)
 
 for _, p in pairs(Players:GetPlayers()) do
     if p ~= player then
@@ -298,190 +267,136 @@ end)
 -- ========== CUSTOM COLOR SYSTEM ==========
 
 local COLORS = {
-    ["BLACK"]      = Color3.fromRGB(0,   0,   0),
-    ["BLUE"]       = Color3.fromRGB(65,  133, 172),
-    ["ROXO"]       = Color3.fromRGB(118, 9,   141),
-    ["LARANJA"]    = Color3.fromRGB(198, 116, 57),
-    ["GREEN RIN"]  = Color3.fromRGB(33,  182, 127),
-    ["RED NEON"]   = Color3.fromRGB(218, 102, 102),
-    ["GREEN"]      = Color3.fromRGB(4,   107, 75),
-    ["PINK NEON"]  = Color3.fromRGB(222, 118, 140),
-    ["WHITE NEON"] = Color3.fromRGB(172, 172, 182),
-    ["GREEN AIKU"] = Color3.fromRGB(129, 185, 91),
-    ["YELLOW"]     = Color3.fromRGB(168, 154, 96),
-    ["RED BLOOD"]  = Color3.fromRGB(81,  14,  37),
+    ["BLACK"]        = Color3.fromRGB(0,   0,   0),
+    ["BLUE"]         = Color3.fromRGB(65,  133, 172),
+    ["ROXO"]         = Color3.fromRGB(118, 9,   141),
+    ["LARANJA"]      = Color3.fromRGB(198, 116, 57),
+    ["GREEN (RIN)"]  = Color3.fromRGB(33,  182, 127),
+    ["RED (NEON)"]   = Color3.fromRGB(218, 102, 102),
+    ["GREEN"]        = Color3.fromRGB(4,   107, 75),
+    ["PINK (NEON)"]  = Color3.fromRGB(222, 118, 140),
+    ["WHITE (NEON)"] = Color3.fromRGB(172, 172, 182),
+    ["GREEN (AIKU)"] = Color3.fromRGB(129, 185, 91),
+    ["YELLOW"]       = Color3.fromRGB(168, 154, 96),
+    ["RED (BLOOD)"]  = Color3.fromRGB(81,  14,  37),
 }
 
 local selectedColor = Color3.fromRGB(0, 0, 0)
 local colorSkillEnabled = false
 local colorConnections = {}
-local gkOriginalColors = {}
 
-local function getChosenColor() return selectedColor end
-local function getChosenSeq() return ColorSequence.new(selectedColor) end
-
-local function isMyChar(v)
-    local char = player.Character
-    return char ~= nil and v:IsDescendantOf(char)
+local function getChosenColor()
+    return selectedColor
 end
 
-local function isBallAndMine(v)
+local function getChosenSeq()
+    return ColorSequence.new(selectedColor)
+end
+
+-- Bola fica com cor original
+local function isBallPart(v)
     local p = v.Parent
     while p and p ~= Workspace do
-        if p.Name:lower() == "ball" then
-            local ball = p
-            local char = player.Character
-            if char then
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                if hrp and ball:IsA("BasePart") then
-                    local dist = (hrp.Position - ball.Position).Magnitude
-                    if dist <= 15 then return true end
-                end
-            end
-            return false
-        end
+        if p.Name:lower() == "ball" then return true end
         p = p.Parent
     end
-    return false
+    return v.Name == "Ball" and v:IsA("BasePart")
 end
 
-local function isOtherPlayer(v)
+-- GK fica com cor original
+local function isGKDescendant(v)
     for _, p in pairs(Players:GetPlayers()) do
-        if p ~= player and p.Character and v:IsDescendantOf(p.Character) then
-            return true, p
+        if p.Character and v:IsDescendantOf(p.Character) then
+            if p.Character:GetAttribute("IsGK") or
+               p.Character:GetAttribute("GK") or
+               p.Name:lower():find("gk") or
+               p.Name:lower():find("keeper") then
+                return true
+            end
         end
     end
-    return false, nil
-end
-
-local function isPlayerGK(p)
-    if not p or not p.Character then return false end
-    local char = p.Character
-    if char:GetAttribute("IsGK") or char:GetAttribute("GK") or char:GetAttribute("Goalkeeper") then return true end
-    local pname = p.Name:lower()
-    if pname:find("gk") or pname:find("keeper") or pname:find("goleiro") then return true end
-    local role = char:FindFirstChild("Role") or char:FindFirstChild("Position") or char:FindFirstChild("GK")
-    if role then
-        local val = tostring(role.Value or role.Name):lower()
-        if val:find("gk") or val:find("keeper") or val:find("goalkeeper") then return true end
-    end
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if hum then
-        local dn = hum.DisplayName:lower()
-        if dn:find("gk") or dn:find("keeper") then return true end
-    end
-    for _, child in pairs(char:GetChildren()) do
-        if child.Name:lower() == "gk" or child.Name:lower() == "goalkeeper" then return true end
-    end
     return false
 end
 
-local function saveGKColors(p)
-    if not p or not p.Character then return end
-    if not isPlayerGK(p) then return end
-    local char = p.Character
-    local uid = p.UserId
-    gkOriginalColors[uid] = {}
-    for _, v in pairs(char:GetDescendants()) do
-        pcall(function()
-            if v:IsA("ParticleEmitter") then
-                gkOriginalColors[uid][v] = {type="particle", Color=v.Color, LightEmission=v.LightEmission, Transparency=v.Transparency}
-            elseif v:IsA("Trail") then
-                gkOriginalColors[uid][v] = {type="trail", Color=v.Color, LightEmission=v.LightEmission, Transparency=v.Transparency}
-            elseif v:IsA("Beam") then
-                gkOriginalColors[uid][v] = {type="beam", Color=v.Color, LightEmission=v.LightEmission, Transparency=v.Transparency}
-            elseif v:IsA("Highlight") then
-                gkOriginalColors[uid][v] = {type="highlight", FillColor=v.FillColor, OutlineColor=v.OutlineColor, FillTransparency=v.FillTransparency, OutlineTransparency=v.OutlineTransparency}
-            end
-        end)
+-- Ignora mapa estatico (nao e char, nao e skill, nao e vfx)
+local function isStaticMap(v)
+    if v:IsA("Terrain") or v:IsA("Sky") then return true end
+    local top = v
+    while top.Parent and top.Parent ~= Workspace do
+        top = top.Parent
     end
-end
-
-local function restoreGKColors(p)
-    if not p then return end
-    local uid = p.UserId
-    if not gkOriginalColors[uid] then return end
-    for obj, data in pairs(gkOriginalColors[uid]) do
-        pcall(function()
-            if not obj or not obj.Parent then return end
-            if data.type == "particle" then obj.Color = data.Color obj.LightEmission = data.LightEmission obj.Transparency = data.Transparency
-            elseif data.type == "trail" then obj.Color = data.Color obj.LightEmission = data.LightEmission obj.Transparency = data.Transparency
-            elseif data.type == "beam" then obj.Color = data.Color obj.LightEmission = data.LightEmission obj.Transparency = data.Transparency
-            elseif data.type == "highlight" then obj.FillColor = data.FillColor obj.OutlineColor = data.OutlineColor obj.FillTransparency = data.FillTransparency obj.OutlineTransparency = data.OutlineTransparency
-            end
-        end)
+    if top.Parent ~= Workspace then return false end
+    -- Se for um char de qualquer player, nao e mapa
+    for _, p in pairs(Players:GetPlayers()) do
+        if p.Character and top == p.Character then return false end
     end
+    -- Verifica se e mapa pelo nome (nao contem palavras de skill/vfx)
+    local tname = top.Name:lower()
+    local isVFX = tname:find("vfx") or tname:find("effect") or tname:find("skill")
+        or tname:find("fx") or tname:find("goal") or tname:find("explosion")
+        or tname:find("ball") or tname:find("tackle") or tname:find("shot")
+        or tname:find("trail") or tname:find("aura") or tname:find("particle")
+        or tname:find("emit") or tname:find("tmp") or tname:find("cutscene")
+    if isVFX then return false end
+    return true
 end
 
-local function isEffectObj(v)
-    return v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Beam") or v:IsA("Highlight")
-end
+local function applyColorToObj(v)
+    if not v or not v.Parent then return end
+    -- Bola preservada
+    if isBallPart(v) then return end
+    -- GK preservado
+    if isGKDescendant(v) then return end
+    -- Mapa estatico ignorado
+    if isStaticMap(v) then return end
 
-local function applyToEffect(v)
+    -- Aplica cor em TUDO mais (seu char, chars inimigos, skills de todos)
     pcall(function()
         if v:IsA("ParticleEmitter") then
-            v.Color = getChosenSeq() v.LightEmission = 0 v.LightInfluence = 1 v.Transparency = NumberSequence.new(0)
+            v.Color = getChosenSeq()
+            v.LightEmission = 0
+            v.LightInfluence = 1
+            v.Transparency = NumberSequence.new(0)
         elseif v:IsA("Trail") then
-            v.Color = getChosenSeq() v.LightEmission = 0 v.Transparency = NumberSequence.new(0)
+            v.Color = getChosenSeq()
+            v.LightEmission = 0
+            v.Transparency = NumberSequence.new(0)
         elseif v:IsA("Beam") then
-            v.Color = getChosenSeq() v.LightEmission = 0 v.Transparency = NumberSequence.new(0)
+            v.Color = getChosenSeq()
+            v.LightEmission = 0
+            v.Transparency = NumberSequence.new(0)
         elseif v:IsA("Highlight") then
-            v.FillColor = getChosenColor() v.OutlineColor = getChosenColor()
-            v.FillTransparency = 0.3 v.OutlineTransparency = 0
+            v.FillColor = getChosenColor()
+            v.OutlineColor = getChosenColor()
+            v.FillTransparency = 0.3
+            v.OutlineTransparency = 0
         end
     end)
 end
 
-local myGoalActive = false
-
-local function applyColorToObj(v)
-    if not v or not v.Parent then return end
-    local isOther, otherP = isOtherPlayer(v)
-    if isOther then
-        if otherP and isPlayerGK(otherP) then restoreGKColors(otherP) end
-        return
-    end
-    if isMyChar(v) then applyToEffect(v) return end
-    if isBallAndMine(v) then applyToEffect(v) return end
-    if myGoalActive then
-        local vname = v.Name:lower()
-        local pname = v.Parent and v.Parent.Name:lower() or ""
-        if vname:find("goal") or vname:find("explosion") or pname:find("goal") or pname:find("explosion") then
-            applyToEffect(v)
-        end
-    end
+local function isEffectObj(v)
+    return v:IsA("ParticleEmitter") or v:IsA("Trail") or
+           v:IsA("Beam") or v:IsA("Highlight")
 end
 
-pcall(function()
-    local GoalRE2 = ReplicatedStorage:WaitForChild("GoalRE", 10)
-    if GoalRE2 then
-        GoalRE2.OnClientEvent:Connect(function(scorerName)
-            local isMe = false
-            if typeof(scorerName) == "string" and scorerName == player.Name then isMe = true end
-            if typeof(scorerName) == "Instance" and scorerName:IsA("Player") and scorerName == player then isMe = true end
-            if isMe and colorSkillEnabled then
-                myGoalActive = true
-                task.delay(5, function() myGoalActive = false end)
-            end
-        end)
-    end
-end)
-
 local function startColorSkill()
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= player then saveGKColors(p) end
-    end
+    -- Ego cor escolhida
     pcall(function()
         local r = math.floor(selectedColor.R * 255)
         local g = math.floor(selectedColor.G * 255)
         local b = math.floor(selectedColor.B * 255)
         player.Ego.Value = r .. "," .. g .. "," .. b
     end)
+
+    -- Flow bar cor escolhida
     pcall(function()
-        local flowBar = player.PlayerGui:WaitForChild("MainmenuGui"):WaitForChild("Frame2"):WaitForChild("Flow-bar-inside")
+        local flowBar = player.PlayerGui:WaitForChild("MainmenuGui")
+            :WaitForChild("Frame2"):WaitForChild("Flow-bar-inside")
         flowBar.BackgroundColor3 = getChosenColor()
         flowBar.BorderColor3 = getChosenColor()
     end)
+
+    -- Loop ego e flow bar
     task.spawn(function()
         while colorSkillEnabled do
             pcall(function()
@@ -497,63 +412,94 @@ local function startColorSkill()
                     local f2 = gui:FindFirstChild("Frame2")
                     if f2 then
                         local fb = f2:FindFirstChild("Flow-bar-inside")
-                        if fb then fb.BackgroundColor3 = getChosenColor() fb.BorderColor3 = getChosenColor() end
+                        if fb then
+                            fb.BackgroundColor3 = getChosenColor()
+                            fb.BorderColor3 = getChosenColor()
+                        end
                     end
                 end
             end)
-            for _, p in pairs(Players:GetPlayers()) do
-                if p ~= player and isPlayerGK(p) then restoreGKColors(p) end
-            end
             task.wait(0.3)
         end
     end)
+
+    -- Scan inicial workspace (em lotes pra nao travar)
     task.spawn(function()
-        local char = player.Character
-        if char then
-            for _, v in pairs(char:GetDescendants()) do
-                if colorSkillEnabled and isEffectObj(v) then applyToEffect(v) end
+        local all = Workspace:GetDescendants()
+        for i = 1, #all, 150 do
+            for j = i, math.min(i + 149, #all) do
+                if colorSkillEnabled and isEffectObj(all[j]) then
+                    applyColorToObj(all[j])
+                end
             end
+            task.wait()
         end
     end)
-    local myChar = player.Character
-    if myChar then
-        local myConn = myChar.DescendantAdded:Connect(function(v)
-            if colorSkillEnabled and isEffectObj(v) then task.defer(function() applyToEffect(v) end) end
-        end)
-        table.insert(colorConnections, myConn)
+
+    -- Scan ReplicatedStorage (skills ficam aqui antes de serem clonadas)
+    task.spawn(function()
+        local all = ReplicatedStorage:GetDescendants()
+        for i = 1, #all, 150 do
+            for j = i, math.min(i + 149, #all) do
+                if colorSkillEnabled and isEffectObj(all[j]) then
+                    applyColorToObj(all[j])
+                end
+            end
+            task.wait()
+        end
+    end)
+
+    -- Tempo real: qualquer novo efeito no workspace
+    local wConn = Workspace.DescendantAdded:Connect(function(v)
+        if colorSkillEnabled and isEffectObj(v) then
+            task.defer(function() applyColorToObj(v) end)
+        end
+    end)
+    table.insert(colorConnections, wConn)
+
+    -- Tempo real: qualquer novo efeito no ReplicatedStorage
+    local rConn = ReplicatedStorage.DescendantAdded:Connect(function(v)
+        if colorSkillEnabled and isEffectObj(v) then
+            task.defer(function() applyColorToObj(v) end)
+        end
+    end)
+    table.insert(colorConnections, rConn)
+
+    -- Monitora chars de todos os players (inclusive inimigos)
+    for _, p in pairs(Players:GetPlayers()) do
+        if p.Character then
+            local pConn = p.Character.DescendantAdded:Connect(function(v)
+                if colorSkillEnabled and isEffectObj(v) then
+                    task.defer(function() applyColorToObj(v) end)
+                end
+            end)
+            table.insert(colorConnections, pConn)
+        end
     end
-    local ballConn = Workspace.DescendantAdded:Connect(function(v)
-        if colorSkillEnabled and isEffectObj(v) then task.defer(function() applyColorToObj(v) end) end
-    end)
-    table.insert(colorConnections, ballConn)
-    local newBallConn = Workspace.ChildAdded:Connect(function(child)
-        if child.Name:lower() == "ball" then
-            task.wait(0.1)
-            for _, v in pairs(child:GetDescendants()) do
-                if colorSkillEnabled and isEffectObj(v) then applyColorToObj(v) end
-            end
-        end
-    end)
-    table.insert(colorConnections, newBallConn)
-    local respawnConn = player.CharacterAdded:Connect(function(char)
-        task.wait(0.5)
-        for _, v in pairs(char:GetDescendants()) do
-            if colorSkillEnabled and isEffectObj(v) then applyToEffect(v) end
-        end
-        local newMyConn = char.DescendantAdded:Connect(function(v)
-            if colorSkillEnabled and isEffectObj(v) then task.defer(function() applyToEffect(v) end) end
+
+    -- Quando novo player entra, monitora o char dele tambem
+    local newPlayerConn = Players.PlayerAdded:Connect(function(p)
+        p.CharacterAdded:Connect(function(char)
+            task.wait(0.5)
+            local pConn = char.DescendantAdded:Connect(function(v)
+                if colorSkillEnabled and isEffectObj(v) then
+                    task.defer(function() applyColorToObj(v) end)
+                end
+            end)
+            table.insert(colorConnections, pConn)
         end)
-        table.insert(colorConnections, newMyConn)
     end)
-    table.insert(colorConnections, respawnConn)
+    table.insert(colorConnections, newPlayerConn)
 end
 
 local function stopColorSkill()
     for _, c in pairs(colorConnections) do
-        pcall(function() if typeof(c) == "RBXScriptConnection" then c:Disconnect() end end)
+        pcall(function()
+            if typeof(c) == "RBXScriptConnection" then c:Disconnect() end
+        end)
     end
     colorConnections = {}
-    myGoalActive = false
+
     pcall(function() player.Ego.Value = "NONE" end)
     pcall(function()
         local gui = player.PlayerGui:FindFirstChild("MainmenuGui")
@@ -561,40 +507,80 @@ local function stopColorSkill()
             local f2 = gui:FindFirstChild("Frame2")
             if f2 then
                 local fb = f2:FindFirstChild("Flow-bar-inside")
-                if fb then fb.BackgroundColor3 = Color3.fromRGB(255, 200, 0) fb.BorderColor3 = Color3.fromRGB(255, 200, 0) end
+                if fb then
+                    fb.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
+                    fb.BorderColor3 = Color3.fromRGB(255, 200, 0)
+                end
             end
         end
     end)
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= player then restoreGKColors(p) end
-    end
 end
 
 local function setColor(nome)
     if COLORS[nome] then
         selectedColor = COLORS[nome]
-        Window:Notify({Title = "COR SELECIONADA", Desc = nome .. " ativada!", Time = 2})
-        if colorSkillEnabled then stopColorSkill() task.wait(0.1) startColorSkill() end
-    end
-end
-
-Players.PlayerAdded:Connect(function(p)
-    p.CharacterAdded:Connect(function() task.wait(1) saveGKColors(p) end)
-end)
-for _, p in pairs(Players:GetPlayers()) do
-    if p ~= player and p.Character then
-        task.spawn(function() task.wait(0.5) saveGKColors(p) end)
+        Window:Notify({
+            Title = "COR SELECIONADA",
+            Desc = nome .. " ativada!",
+            Time = 2
+        })
+        if colorSkillEnabled then
+            stopColorSkill()
+            task.wait(0.1)
+            startColorSkill()
+        end
     end
 end
 
 -- ========== TABS ==========
 
-local Main = Window:Tab({Title = "MAIN", Icon = "house"}) do
+local Main = Window:Tab({Title = "MAIN", Icon = "house"})
     Main:Section({Title = "MOVEMENT"})
-    Main:Toggle({Title = "WALKSPEED", Desc = "info: recomendo 37 de speed se quiser disfarçar", Value = false, Callback = function(v) WalkSpeedEnabled = v applyValues() end})
-    Main:Slider({Title = "WalkSpeed", Min = 0, Max = 100, Rounding = 0, Value = 16, Callback = function(val) WalkSpeedValue = val applyValues() end})
-    Main:Toggle({Title = "JUMPOWER", Desc = "info: recomendo 66 de power se quiser disfarçar", Value = false, Callback = function(v) JumpPowerEnabled = v applyValues() end})
-    Main:Slider({Title = "JUMPOWER", Min = 0, Max = 100, Rounding = 0, Value = 50, Callback = function(val) JumpPowerValue = val applyValues() end})
+
+    Main:Toggle({
+        Title = "WALKSPEED",
+        Desc = "info: recomendo 37 de speed se quiser disfarcar",
+        Value = false,
+        Callback = function(v)
+            WalkSpeedEnabled = v
+            applyValues()
+        end
+    })
+
+    Main:Slider({
+        Title = "WalkSpeed",
+        Min = 0,
+        Max = 100,
+        Rounding = 0,
+        Value = 16,
+        Callback = function(val)
+            WalkSpeedValue = val
+            applyValues()
+        end
+    })
+
+    Main:Toggle({
+        Title = "JUMPOWER",
+        Desc = "info: recomendo 66 de power se quiser disfarcar",
+        Value = false,
+        Callback = function(v)
+            JumpPowerEnabled = v
+            applyValues()
+        end
+    })
+
+    Main:Slider({
+        Title = "JUMPOWER",
+        Min = 0,
+        Max = 100,
+        Rounding = 0,
+        Value = 50,
+        Callback = function(val)
+            JumpPowerValue = val
+            applyValues()
+        end
+    })
+
     Main:Toggle({
         Title = "NORAGDOLL",
         Desc = "info: esse script tira o seu ragdoll do CHUTE e de TACKLE",
@@ -608,128 +594,68 @@ local Main = Window:Tab({Title = "MAIN", Icon = "house"}) do
             end
         end
     })
+
     Main:Section({Title = "BALL MODIFICATIONS"})
-    Main:Toggle({Title = "BALL HITBOX", Desc = "info: use essa hitbox mais pro tackle", Value = false, Callback = function(v) BallModEnabled = v if v then local ball = Workspace:FindFirstChild("Ball") if ball then applyBallProperties(ball) end end end})
-    Main:Slider({Title = "BALL SIZE", Min = 0, Max = 100, Rounding = 0, Value = 34, Callback = function(val) BallSizeValue = val if BallModEnabled then local ball = Workspace:FindFirstChild("Ball") if ball then applyBallProperties(ball) end end end})
-    Main:Slider({Title = "BALL TRANSPARENCE", Min = 0, Max = 100, Rounding = 0, Value = 70, Callback = function(val) BallTransparencyValue = val if BallModEnabled then local ball = Workspace:FindFirstChild("Ball") if ball then applyBallProperties(ball) end end end})
-end
 
-local Techs = Window:Tab({Title = "TECHS", Icon = "tag"}) do
-    Techs:Section({Title = "TECNICAS"})
-    Techs:Button({Title = "AIR DRIBLE", Desc = "info: o script tem alguns bugs mais funciona perfeitamente", Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Air-drible-beta/refs/heads/main/Air%20drible%20beta"))() Window:Notify({Title = "Techs", Desc = "AIR DRIBLE executado!", Time = 3}) end})
-    Techs:Button({Title = "AIMBOT BALL (BETA)", Desc = "info: o aimbot não gruda com a bola parada", Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/AIMBOT-BALL-OBFUSCADO-/refs/heads/main/AIMBOT%20BALL%20OBFUSCADO"))() Window:Notify({Title = "Techs", Desc = "AIM BOT BALL executado!", Time = 3}) end})
-    Techs:Button({Title = "AUTO GK (BETA)", Desc = "info: recomendo usar sem shift lock", Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/AUTO-GK-OBFUSCADO-/refs/heads/main/AUTO%20GK"))() Window:Notify({Title = "Techs", Desc = "AUTO GK executado!", Time = 3}) end})
-end
-
-local Armas = Window:Tab({Title = "ARMAS ENGRAÇADAS", Icon = "user"}) do
-    Armas:Section({Title = "ARMAS MODIFICADAS"})
-    Armas:Button({Title = "EMPERROR", Desc = "info: essa arma é modificada para deixar a gameplay mais divertida", Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Script-skill-meme-completar-emperor/refs/heads/main/Skill%20meme%20emperor"))() Window:Notify({Title = "ARMAS ENGRAÇADAS", Desc = "skills memes + aura", Time = 3}) end})
-    Armas:Button({Title = "ZOMBIE DRIBBLING", Desc = "info: essa arma é modificada para deixar a gameplay mais divertida", Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Zombie-driblling-skills/refs/heads/main/README.md"))() Window:Notify({Title = "ARMAS ENGRAÇADAS", Desc = "ZOMBIE DRIBBLING MOD executado!", Time = 3}) end})
-    Armas:Button({Title = "NEL ISAGI", Desc = "info: essa arma é modificada para deixar a gameplay mais divertida", Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Nel-isagi-mod/refs/heads/main/README.md"))() Window:Notify({Title = "ARMAS ENGRAÇADAS", Desc = "NEL ISAGI MOD executado!", Time = 3}) end})
-end
-
-local Misc = Window:Tab({Title = "MISC", Icon = "star"}) do
-    Misc:Section({Title = "CUSTOM"})
-    Misc:Textbox({
-        Title = "ID CUSTOMIZE RAGDOLL",
-        Desc = "info: bote o id de um Audio para quando alguem tomar ragdoll",
-        Placeholder = savedRagdollId ~= "" and savedRagdollId or "Ex: 137822897777384",
-        Callback = function(val)
-            local id = tostring(val):match("%d+")
-            if id and id ~= "0" then
-                ragdollSoundId = id
-                if writefile then pcall(function() writefile("sylax_ragdoll_id.txt", id) end) end
-                Window:Notify({Title = "RAGDOLL ID", Desc = "ID salvo: " .. id, Time = 3})
-            else
-                ragdollSoundId = ""
-                Window:Notify({Title = "RAGDOLL ID", Desc = "ID invalido!", Time = 3})
-            end
-        end
-    })
-    Misc:Textbox({
-        Title = "ID CUSTOMIZE GOAL",
-        Desc = "info: bote o ID do som para quando voce fazer gol",
-        Placeholder = savedGoalId ~= "" and savedGoalId or "Ex: 137822897777384",
-        Callback = function(val)
-            local id = tostring(val):match("%d+")
-            if id and id ~= "0" then
-                goalSoundId = id
-                if writefile then pcall(function() writefile("sylax_goal_id.txt", id) end) end
-                Window:Notify({Title = "GOAL ID", Desc = "ID salvo: " .. id, Time = 3})
-            else
-                goalSoundId = ""
-                Window:Notify({Title = "GOAL ID", Desc = "ID invalido!", Time = 3})
-            end
-        end
-    })
-    Misc:Section({Title = "COLOR SKILL"})
-    Misc:Textbox({
-        Title = "ESCOLHER COR",
-        Desc = "BLACK | BLUE | ROXO | LARANJA | GREEN RIN | RED NEON | GREEN | PINK NEON | WHITE NEON | GREEN AIKU | YELLOW | RED BLOOD",
-        Placeholder = "Digite ex: BLUE ou RED NEON",
-        Callback = function(val)
-            local nome = val:upper()
-            if COLORS[nome] then
-                setColor(nome)
-            else
-                Window:Notify({Title = "COR INVALIDA", Desc = "Tente: BLACK, BLUE, ROXO...", Time = 3})
-            end
-        end
-    })
-    Misc:Toggle({
-        Title = "CUSTOM COLOR SKILL (BETA)",
-        Desc = "info: o script está com alguns bugs minimos mas ainda sim é totalmente jogavel",
+    Main:Toggle({
+        Title = "BALL HITBOX",
+        Desc = "info: use essa hitbox mais pro tackle",
         Value = false,
         Callback = function(v)
-            colorSkillEnabled = v
+            BallModEnabled = v
             if v then
-                startColorSkill()
-                Window:Notify({Title = "CUSTOM COLOR", Desc = "Ativado!", Time = 3})
-            else
-                stopColorSkill()
-                Window:Notify({Title = "CUSTOM COLOR", Desc = "Desativado!", Time = 3})
+                local ball = Workspace:FindFirstChild("Ball")
+                if ball then applyBallProperties(ball) end
             end
         end
     })
-end
 
-local FPSBoost = Window:Tab({Title = "SETTINGS", Icon = "settings"}) do
-    FPSBoost:Section({Title = "PERFORMANCE"})
-    FPSBoost:Button({Title = "FPS BOOST", Desc = "info: vai travar um pouco mais é só pra carregar o script", Callback = function() getgenv().REMOVE_EFFECTS = true getgenv().SHOW_WHOLE_MAP = true loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Fps-boost/refs/heads/main/README.md"))() Window:Notify({Title = "FPS BOOST", Desc = "BOOST Executado!", Time = 3}) end})
-    FPSBoost:Section({Title = "VISUAL"})
-    local MetaVisionEnabled = false
-    FPSBoost:Toggle({Title = "META VISION", Desc = "info: ative a meta visão e receba informações sobre os jogadores", Value = false, Callback = function(v) MetaVisionEnabled = v if v then player:SetAttribute("Metavision", true) Window:Notify({Title = "META VISION", Desc = "META VISION ativada!", Time = 3}) else player:SetAttribute("Metavision", false) Window:Notify({Title = "META VISION", Desc = "META VISION desativada!", Time = 3}) end end})
-    FPSBoost:Toggle({Title = "ESP BALL", Desc = "info: a bola fica destacada no campo", Value = false, Callback = function(v) ESPEnabled = v if v then loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/BALL-predict/refs/heads/main/BALL%20predict"))() Window:Notify({Title = "ESP BALL", Desc = "ESP da bola ativado!", Time = 3}) else local marker = Workspace:FindFirstChild("PredictionMarker") if marker then marker:Destroy() end local espGui = player.PlayerGui:FindFirstChild("BallESP") if espGui then espGui:Destroy() end Window:Notify({Title = "ESP BALL", Desc = "ESP da bola desativado!", Time = 3}) end end})
-    FPSBoost:Button({Title = "SHADER", Desc = "info: esse Shader é apenas para deixar a gameplay mais bonita", Callback = function() loadstring(game:HttpGet("https://pastebin.com/raw/Zpaf00Nu"))() Window:Notify({Title = "SHADER", Desc = "SHADER ativado!", Time = 3}) end})
-    local RainEnabled = false
-    FPSBoost:Toggle({
-        Title = "CHUVA",
-        Desc = "info: essa chuva é só para talvez deixar o visual da gameplay melhor",
-        Value = false,
-        Callback = function(v)
-            RainEnabled = v
-            if v then
+    Main:Slider({
+        Title = "BALL SIZE",
+        Min = 0,
+        Max = 100,
+        Rounding = 0,
+        Value = 34,
+        Callback = function(val)
+            BallSizeV            if v then
                 loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Chuva/refs/heads/main/README.md"))()
                 Window:Notify({Title = "CHUVA", Desc = "CHUVA ativada!", Time = 3})
             else
                 for _, drop in pairs(Workspace:GetChildren()) do
-                    if drop:IsA("Part") and drop.Size.Y < 5 and drop.Transparency > 0.4 then drop:Destroy() end
+                    if drop:IsA("Part") and drop.Size.Y < 5 and drop.Transparency > 0.4 then
+                        drop:Destroy()
+                    end
                 end
                 local lighting = game:GetService("Lighting")
-                for _, sky in pairs(lighting:GetChildren()) do if sky:IsA("Sky") then sky:Destroy() end end
-                lighting.FogStart = 0 lighting.FogEnd = 100000 lighting.Brightness = 2
+                for _, sky in pairs(lighting:GetChildren()) do
+                    if sky:IsA("Sky") then sky:Destroy() end
+                end
+                lighting.FogStart = 0
+                lighting.FogEnd = 100000
+                lighting.Brightness = 2
                 Window:Notify({Title = "CHUVA", Desc = "CHUVA desativada!", Time = 3})
             end
         end
     })
-    FPSBoost:Button({Title = "TEAM SELECT", Desc = "info: escolha seu time azul ou vermelho", Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Sele-o-de-time/refs/heads/main/README.md"))() Window:Notify({Title = "TEAM SELECT", Desc = "Tela de seleção aberta!", Time = 3}) end})
+
+    FPSBoost:Button({
+        Title = "TEAM SELECT",
+        Desc = "info: escolha seu time azul ou vermelho",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Sele-o-de-time/refs/heads/main/README.md"))()
+            Window:Notify({Title = "TEAM SELECT", Desc = "Tela de selecao aberta!", Time = 3})
+        end
+    })
+
     FPSBoost:Section({Title = "CAMERA"})
+
     local FOVValue = 0.5
     local FOVEnabled = false
     local FOVConnection = nil
+
     FPSBoost:Toggle({
         Title = "FOV",
-        Desc = "info: mexa na distância da sua visão",
+        Desc = "info: mexa na distancia da sua visao",
         Value = false,
         Callback = function(v)
             FOVEnabled = v
@@ -740,11 +666,28 @@ local FPSBoost = Window:Tab({Title = "SETTINGS", Icon = "settings"}) do
                     end
                 end)
             else
-                if FOVConnection then FOVConnection:Disconnect() FOVConnection = nil end
+                if FOVConnection then
+                    FOVConnection:Disconnect()
+                    FOVConnection = nil
+                end
             end
         end
     })
-    FPSBoost:Slider({Title = "FOV VALUE", Min = 0, Max = 100, Rounding = 1, Value = 50, Callback = function(val) FOVValue = (100 - val) / 100 end})
+
+    FPSBoost:Slider({
+        Title = "FOV VALUE",
+        Min = 0,
+        Max = 100,
+        Rounding = 1,
+        Value = 50,
+        Callback = function(val)
+            FOVValue = (100 - val) / 100
+        end
+    })
 end
 
-Window:Notify({Title = "SYLAX HUB", Desc = "Script carregado com sucesso!", Time = 4})
+Window:Notify({
+    Title = "SYLAX HUB",
+    Desc = "Script carregado com sucesso!",
+    Time = 4
+})

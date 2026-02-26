@@ -9,10 +9,7 @@ local Window = Library:Window({
         Keybind = Enum.KeyCode.LeftControl,
         Size = UDim2.new(0, 500, 0, 400)
     },
-    CloseUIButton = {
-        Enabled = true,
-        Text = "SYLAX HUB"
-    }
+    CloseUIButton = {Enabled = true, Text = "SYLAX HUB"}
 })
 
 local WalkSpeedValue = 16
@@ -118,9 +115,7 @@ local function monitorMyActions()
     if animator then
         animator.AnimationPlayed:Connect(function(track)
             local name = track.Name:lower()
-            if name:find("tackle") or name:find("steal") or
-               name:find("attack") or name:find("skill") or
-               name:find("kick") or name:find("dribble") then
+            if name:find("tackle") or name:find("steal") or name:find("attack") or name:find("skill") or name:find("kick") or name:find("dribble") then
                 lastMyAction = tick()
             end
         end)
@@ -135,8 +130,7 @@ local function monitorMyActions()
                 local otherHuman = hitChar:FindFirstChildOfClass("Humanoid")
                 if otherHuman then
                     local state = otherHuman:GetState()
-                    if state ~= Enum.HumanoidStateType.Standing and
-                       state ~= Enum.HumanoidStateType.Running then
+                    if state ~= Enum.HumanoidStateType.Standing and state ~= Enum.HumanoidStateType.Running then
                         lastMyAction = tick()
                     end
                 end
@@ -160,8 +154,7 @@ local function monitorRagdollCharacter(p, character)
     end
 
     humanoid.StateChanged:Connect(function(oldState, newState)
-        if (newState == Enum.HumanoidStateType.Ragdoll or newState == Enum.HumanoidStateType.FallingDown) and
-           (oldState ~= Enum.HumanoidStateType.Ragdoll and oldState ~= Enum.HumanoidStateType.FallingDown) then
+        if (newState == Enum.HumanoidStateType.Ragdoll or newState == Enum.HumanoidStateType.FallingDown) and (oldState ~= Enum.HumanoidStateType.Ragdoll and oldState ~= Enum.HumanoidStateType.FallingDown) then
             tryPlay()
         end
     end)
@@ -232,21 +225,19 @@ pcall(function()
     end
 end)
 
--- ========== CUSTOM COLOR SYSTEM ==========
-
 local COLORS = {
-    ["BLACK"]      = Color3.fromRGB(0,   0,   0),
-    ["BLUE"]       = Color3.fromRGB(65,  133, 172),
-    ["ROXO"]       = Color3.fromRGB(118, 9,   141),
-    ["LARANJA"]    = Color3.fromRGB(198, 116, 57),
-    ["GREEN RIN"]  = Color3.fromRGB(33,  182, 127),
-    ["RED NEON"]   = Color3.fromRGB(218, 102, 102),
-    ["GREEN"]      = Color3.fromRGB(4,   107, 75),
-    ["PINK NEON"]  = Color3.fromRGB(222, 118, 140),
+    ["BLACK"] = Color3.fromRGB(0, 0, 0),
+    ["BLUE"] = Color3.fromRGB(65, 133, 172),
+    ["ROXO"] = Color3.fromRGB(118, 9, 141),
+    ["LARANJA"] = Color3.fromRGB(198, 116, 57),
+    ["GREEN RIN"] = Color3.fromRGB(33, 182, 127),
+    ["RED NEON"] = Color3.fromRGB(218, 102, 102),
+    ["GREEN"] = Color3.fromRGB(4, 107, 75),
+    ["PINK NEON"] = Color3.fromRGB(222, 118, 140),
     ["WHITE NEON"] = Color3.fromRGB(172, 172, 182),
     ["GREEN AIKU"] = Color3.fromRGB(129, 185, 91),
-    ["YELLOW"]     = Color3.fromRGB(168, 154, 96),
-    ["RED BLOOD"]  = Color3.fromRGB(81,  14,  37),
+    ["YELLOW"] = Color3.fromRGB(168, 154, 96),
+    ["RED BLOOD"] = Color3.fromRGB(81, 14, 37),
 }
 
 local selectedColor = Color3.fromRGB(0, 0, 0)
@@ -524,27 +515,50 @@ for _, p in pairs(Players:GetPlayers()) do
     end
 end
 
+-- ========== SISTEMA DE UNIFORMES ==========
+
+local KITS = {
+    {name = "Manshine City", shirt = "76851298419799", pants = "123398716070515"},
+    {name = "BASTARD", shirt = "91103505462276", pants = "12975858304"},
+    {name = "Black Eleven", shirt = "88935754123713", pants = "107590004917576"},
+    {name = "BLACK PXG", shirt = "75213667920088", pants = "14427923555"},
+    {name = "World Cup", shirt = "127371929848757", pants = "92479700702834"},
+    {name = "Munchen Tracksuit", shirt = "137210706806326", pants = "119210028493154"}
+}
+
+local function equipTeamKit(kit)
+    local char = player.Character
+    if not char then return end
+    for _, obj in pairs(char:GetChildren()) do
+        if obj:IsA("Shirt") then obj:Destroy() end
+        if obj:IsA("Pants") then obj:Destroy() end
+    end
+    task.wait(0.1)
+    local shirt = Instance.new("Shirt")
+    shirt.Name = "Shirt"
+    shirt.ShirtTemplate = "rbxassetid://" .. kit.shirt
+    shirt.Parent = char
+    local pants = Instance.new("Pants")
+    pants.Name = "Pants"
+    pants.PantsTemplate = "rbxassetid://" .. kit.pants
+    pants.Parent = char
+    local clothRemote = ReplicatedStorage:FindFirstChild("ClothSoundRE", true)
+    if clothRemote then
+        pcall(function()
+            clothRemote:FireServer(kit.shirt, kit.pants)
+        end)
+    end
+end
+
 -- ========== TABS ==========
 
 local Main = Window:Tab({Title = "MAIN", Icon = "house"}) do
     Main:Section({Title = "MOVEMENT"})
-    Main:Toggle({Title = "WALKSPEED", Desc = "info: recomendo 37 de speed se quiser disfarçar", Value = false, Callback = function(v) WalkSpeedEnabled = v applyValues() end})
+    Main:Toggle({Title = "WALKSPEED", Desc = "info: recomendo 37 de speed se quiser disfarÃ§ar", Value = false, Callback = function(v) WalkSpeedEnabled = v applyValues() end})
     Main:Slider({Title = "WalkSpeed", Min = 0, Max = 100, Rounding = 0, Value = 16, Callback = function(val) WalkSpeedValue = val applyValues() end})
-    Main:Toggle({Title = "JUMPOWER", Desc = "info: recomendo 66 de power se quiser disfarçar", Value = false, Callback = function(v) JumpPowerEnabled = v applyValues() end})
+    Main:Toggle({Title = "JUMPOWER", Desc = "info: recomendo 66 de power se quiser disfarÃ§ar", Value = false, Callback = function(v) JumpPowerEnabled = v applyValues() end})
     Main:Slider({Title = "JUMPOWER", Min = 0, Max = 100, Rounding = 0, Value = 50, Callback = function(val) JumpPowerValue = val applyValues() end})
-    Main:Toggle({
-        Title = "NORAGDOLL",
-        Desc = "info: esse script tira o seu ragdoll do CHUTE e de TACKLE",
-        Value = false,
-        Callback = function(v)
-            if v then
-                loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Noragdoll/refs/heads/main/README.md"))()
-                Window:Notify({Title = "NORAGDOLL", Desc = "NORAGDOLL ativado!", Time = 3})
-            else
-                Window:Notify({Title = "NORAGDOLL", Desc = "NORAGDOLL desativado!", Time = 3})
-            end
-        end
-    })
+    Main:Toggle({Title = "NORAGDOLL", Desc = "info: esse script tira o seu ragdoll do CHUTE e de TACKLE", Value = false, Callback = function(v) if v then loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Noragdoll/refs/heads/main/README.md"))() Window:Notify({Title = "NORAGDOLL", Desc = "NORAGDOLL ativado!", Time = 3}) else Window:Notify({Title = "NORAGDOLL", Desc = "NORAGDOLL desativado!", Time = 3}) end end})
     Main:Section({Title = "BALL MODIFICATIONS"})
     Main:Toggle({Title = "BALL HITBOX", Desc = "info: use essa hitbox mais pro tackle", Value = false, Callback = function(v) BallModEnabled = v if v then local ball = Workspace:FindFirstChild("Ball") if ball then applyBallProperties(ball) end end end})
     Main:Slider({Title = "BALL SIZE", Min = 0, Max = 100, Rounding = 0, Value = 34, Callback = function(val) BallSizeValue = val if BallModEnabled then local ball = Workspace:FindFirstChild("Ball") if ball then applyBallProperties(ball) end end end})
@@ -554,133 +568,50 @@ end
 local Techs = Window:Tab({Title = "TECHS", Icon = "tag"}) do
     Techs:Section({Title = "TECNICAS"})
     Techs:Button({Title = "AIR DRIBLE", Desc = "info: o script tem alguns bugs mais funciona perfeitamente", Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Air-drible-beta/refs/heads/main/Air%20drible%20beta"))() Window:Notify({Title = "Techs", Desc = "AIR DRIBLE executado!", Time = 3}) end})
-    Techs:Button({Title = "AIMBOT BALL (BETA)", Desc = "info: o aimbot não gruda com a bola parada", Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/AIMBOT-BALL-OBFUSCADO-/refs/heads/main/AIMBOT%20BALL%20OBFUSCADO"))() Window:Notify({Title = "Techs", Desc = "AIM BOT BALL executado!", Time = 3}) end})
+    Techs:Button({Title = "AIMBOT BALL (BETA)", Desc = "info: o aimbot nÃ£o gruda com a bola parada", Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/AIMBOT-BALL-OBFUSCADO-/refs/heads/main/AIMBOT%20BALL%20OBFUSCADO"))() Window:Notify({Title = "Techs", Desc = "AIM BOT BALL executado!", Time = 3}) end})
     Techs:Button({Title = "AUTO GK (BETA)", Desc = "info: recomendo usar sem shift lock", Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/AUTO-GK-OBFUSCADO-/refs/heads/main/AUTO%20GK"))() Window:Notify({Title = "Techs", Desc = "AUTO GK executado!", Time = 3}) end})
 end
 
-local Armas = Window:Tab({Title = "ARMAS ENGRAÇADAS", Icon = "user"}) do
+local Armas = Window:Tab({Title = "ARMAS ENGRAÃ‡ADAS", Icon = "user"}) do
     Armas:Section({Title = "ARMAS MODIFICADAS"})
-    Armas:Button({Title = "EMPERROR", Desc = "info: essa arma é modificada para deixar a gameplay mais divertida", Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Script-skill-meme-completar-emperor/refs/heads/main/Skill%20meme%20emperor"))() Window:Notify({Title = "ARMAS ENGRAÇADAS", Desc = "skills memes + aura", Time = 3}) end})
-    Armas:Button({Title = "ZOMBIE DRIBBLING", Desc = "info: essa arma é modificada para deixar a gameplay mais divertida", Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Zombie-driblling-skills/refs/heads/main/README.md"))() Window:Notify({Title = "ARMAS ENGRAÇADAS", Desc = "ZOMBIE DRIBBLING MOD executado!", Time = 3}) end})
-    Armas:Button({Title = "NEL ISAGI", Desc = "info: essa arma é modificada para deixar a gameplay mais divertida", Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Nel-isagi-mod/refs/heads/main/README.md"))() Window:Notify({Title = "ARMAS ENGRAÇADAS", Desc = "NEL ISAGI MOD executado!", Time = 3}) end})
+    Armas:Button({Title = "EMPERROR", Desc = "info: essa arma Ã© modificada para deixar a gameplay mais divertida", Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Script-skill-meme-completar-emperor/refs/heads/main/Skill%20meme%20emperor"))() Window:Notify({Title = "ARMAS ENGRAÃ‡ADAS", Desc = "skills memes + aura", Time = 3}) end})
+    Armas:Button({Title = "ZOMBIE DRIBBLING", Desc = "info: essa arma Ã© modificada para deixar a gameplay mais divertida", Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Zombie-driblling-skills/refs/heads/main/README.md"))() Window:Notify({Title = "ARMAS ENGRAÃ‡ADAS", Desc = "ZOMBIE DRIBBLING MOD executado!", Time = 3}) end})
+    Armas:Button({Title = "NEL ISAGI", Desc = "info: essa arma Ã© modificada para deixar a gameplay mais divertida", Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Nel-isagi-mod/refs/heads/main/README.md"))() Window:Notify({Title = "ARMAS ENGRAÃ‡ADAS", Desc = "NEL ISAGI MOD executado!", Time = 3}) end})
 end
 
-local Misc = Window:Tab({Title = "MISC", Icon = "star"}) do
+local Misc = Window:Tab({Title = "CUSTOM", Icon = "star"}) do
     Misc:Section({Title = "CUSTOM"})
-    Misc:Textbox({
-        Title = "ID CUSTOMIZE RAGDOLL",
-        Desc = "info: bote o id de um Audio para quando alguem tomar ragdoll",
-        Placeholder = savedRagdollId ~= "" and savedRagdollId or "Ex: 137822897777384",
-        Callback = function(val)
-            local id = tostring(val):match("%d+")
-            if id and id ~= "0" then
-                ragdollSoundId = id
-                if writefile then pcall(function() writefile("sylax_ragdoll_id.txt", id) end) end
-                Window:Notify({Title = "RAGDOLL ID", Desc = "ID salvo: " .. id, Time = 3})
-            else
-                ragdollSoundId = ""
-                Window:Notify({Title = "RAGDOLL ID", Desc = "ID invalido!", Time = 3})
-            end
-        end
-    })
-    Misc:Textbox({
-        Title = "ID CUSTOMIZE GOAL",
-        Desc = "info: bote o ID do som para quando voce fazer gol",
-        Placeholder = savedGoalId ~= "" and savedGoalId or "Ex: 137822897777384",
-        Callback = function(val)
-            local id = tostring(val):match("%d+")
-            if id and id ~= "0" then
-                goalSoundId = id
-                if writefile then pcall(function() writefile("sylax_goal_id.txt", id) end) end
-                Window:Notify({Title = "GOAL ID", Desc = "ID salvo: " .. id, Time = 3})
-            else
-                goalSoundId = ""
-                Window:Notify({Title = "GOAL ID", Desc = "ID invalido!", Time = 3})
-            end
-        end
-    })
+    Misc:Textbox({Title = "ID CUSTOMIZE RAGDOLL", Desc = "info: bote o id de um Audio para quando alguem tomar ragdoll", Placeholder = savedRagdollId ~= "" and savedRagdollId or "Ex: 137822897777384", Callback = function(val) local id = tostring(val):match("%d+") if id and id ~= "0" then ragdollSoundId = id if writefile then pcall(function() writefile("sylax_ragdoll_id.txt", id) end) end Window:Notify({Title = "RAGDOLL ID", Desc = "ID salvo: " .. id, Time = 3}) else ragdollSoundId = "" Window:Notify({Title = "RAGDOLL ID", Desc = "ID invalido!", Time = 3}) end end})
+    Misc:Textbox({Title = "ID CUSTOMIZE GOAL", Desc = "info: bote o ID do som para quando voce fazer gol", Placeholder = savedGoalId ~= "" and savedGoalId or "Ex: 137822897777384", Callback = function(val) local id = tostring(val):match("%d+") if id and id ~= "0" then goalSoundId = id if writefile then pcall(function() writefile("sylax_goal_id.txt", id) end) end Window:Notify({Title = "GOAL ID", Desc = "ID salvo: " .. id, Time = 3}) else goalSoundId = "" Window:Notify({Title = "GOAL ID", Desc = "ID invalido!", Time = 3}) end end})
     Misc:Section({Title = "COLOR SKILL"})
-    Misc:Textbox({
-        Title = "ESCOLHER COR",
-        Desc = "BLACK | BLUE | ROXO | LARANJA | GREEN RIN | RED NEON | GREEN | PINK NEON | WHITE NEON | GREEN AIKU | YELLOW | RED BLOOD",
-        Placeholder = "Digite ex: BLUE ou RED NEON",
-        Callback = function(val)
-            local nome = val:upper()
-            if COLORS[nome] then
-                setColor(nome)
-            else
-                Window:Notify({Title = "COR INVALIDA", Desc = "Tente: BLACK, BLUE, ROXO...", Time = 3})
-            end
-        end
-    })
-    Misc:Toggle({
-        Title = "CUSTOM COLOR SKILL (BETA)",
-        Desc = "info: o script está com alguns bugs minimos mas ainda sim é totalmente jogavel",
-        Value = false,
-        Callback = function(v)
-            colorSkillEnabled = v
-            if v then
-                startColorSkill()
-                Window:Notify({Title = "CUSTOM COLOR", Desc = "Ativado!", Time = 3})
-            else
-                stopColorSkill()
-                Window:Notify({Title = "CUSTOM COLOR", Desc = "Desativado!", Time = 3})
-            end
-        end
-    })
+    Misc:Textbox({Title = "ESCOLHER COR", Desc = "BLACK | BLUE | ROXO | LARANJA | GREEN RIN | RED NEON | GREEN | PINK NEON | WHITE NEON | GREEN AIKU | YELLOW | RED BLOOD", Placeholder = "Digite ex: BLUE ou RED NEON", Callback = function(val) local nome = val:upper() if COLORS[nome] then setColor(nome) else Window:Notify({Title = "COR INVALIDA", Desc = "Tente: BLACK, BLUE, ROXO...", Time = 3}) end end})
+    Misc:Toggle({Title = "CUSTOM COLOR SKILL (BETA)", Desc = "info: o script estÃ¡ com alguns bugs minimos mas ainda sim Ã© totalmente jogavel", Value = false, Callback = function(v) colorSkillEnabled = v if v then startColorSkill() Window:Notify({Title = "CUSTOM COLOR", Desc = "Ativado!", Time = 3}) else stopColorSkill() Window:Notify({Title = "CUSTOM COLOR", Desc = "Desativado!", Time = 3}) end end})
+    
+    Misc:Section({Title = "UNIFORMES"})
+    Misc:Button({Title = "MANSHINE CITY", Callback = function() equipTeamKit(KITS[1]) Window:Notify({Title = "UNIFORME", Desc = "MANSHINE CITY equipado!", Time = 2}) end})
+    Misc:Button({Title = "BASTARD", Callback = function() equipTeamKit(KITS[2]) Window:Notify({Title = "UNIFORME", Desc = "BASTARD equipado!", Time = 2}) end})
+    Misc:Button({Title = "BLACK ELEVEN", Callback = function() equipTeamKit(KITS[3]) Window:Notify({Title = "UNIFORME", Desc = "BLACK ELEVEN equipado!", Time = 2}) end})
+    Misc:Button({Title = "BLACK PXG", Callback = function() equipTeamKit(KITS[4]) Window:Notify({Title = "UNIFORME", Desc = "BLACK PXG equipado!", Time = 2}) end})
+    Misc:Button({Title = "WORLD CUP", Callback = function() equipTeamKit(KITS[5]) Window:Notify({Title = "UNIFORME", Desc = "WORLD CUP equipado!", Time = 2}) end})
+    Misc:Button({Title = "MUNCHEN TRACKSUIT", Callback = function() equipTeamKit(KITS[6]) Window:Notify({Title = "UNIFORME", Desc = "MUNCHEN TRACKSUIT equipado!", Time = 2}) end})
 end
 
 local FPSBoost = Window:Tab({Title = "SETTINGS", Icon = "settings"}) do
     FPSBoost:Section({Title = "PERFORMANCE"})
-    FPSBoost:Button({Title = "FPS BOOST", Desc = "info: vai travar um pouco mais é só pra carregar o script", Callback = function() getgenv().REMOVE_EFFECTS = true getgenv().SHOW_WHOLE_MAP = true loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Fps-boost/refs/heads/main/README.md"))() Window:Notify({Title = "FPS BOOST", Desc = "BOOST Executado!", Time = 3}) end})
+    FPSBoost:Button({Title = "FPS BOOST", Desc = "info: vai travar um pouco mais Ã© sÃ³ pra carregar o script", Callback = function() getgenv().REMOVE_EFFECTS = true getgenv().SHOW_WHOLE_MAP = true loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Fps-boost/refs/heads/main/README.md"))() Window:Notify({Title = "FPS BOOST", Desc = "BOOST Executado!", Time = 3}) end})
     FPSBoost:Section({Title = "VISUAL"})
     local MetaVisionEnabled = false
-    FPSBoost:Toggle({Title = "META VISION", Desc = "info: ative a meta visão e receba informações sobre os jogadores", Value = false, Callback = function(v) MetaVisionEnabled = v if v then player:SetAttribute("Metavision", true) Window:Notify({Title = "META VISION", Desc = "META VISION ativada!", Time = 3}) else player:SetAttribute("Metavision", false) Window:Notify({Title = "META VISION", Desc = "META VISION desativada!", Time = 3}) end end})
+    FPSBoost:Toggle({Title = "META VISION", Desc = "info: ative a meta visÃ£o e receba informaÃ§Ãµes sobre os jogadores", Value = false, Callback = function(v) MetaVisionEnabled = v if v then player:SetAttribute("Metavision", true) Window:Notify({Title = "META VISION", Desc = "META VISION ativada!", Time = 3}) else player:SetAttribute("Metavision", false) Window:Notify({Title = "META VISION", Desc = "META VISION desativada!", Time = 3}) end end})
     FPSBoost:Toggle({Title = "ESP BALL", Desc = "info: a bola fica destacada no campo", Value = false, Callback = function(v) ESPEnabled = v if v then loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/BALL-predict/refs/heads/main/BALL%20predict"))() Window:Notify({Title = "ESP BALL", Desc = "ESP da bola ativado!", Time = 3}) else local marker = Workspace:FindFirstChild("PredictionMarker") if marker then marker:Destroy() end local espGui = player.PlayerGui:FindFirstChild("BallESP") if espGui then espGui:Destroy() end Window:Notify({Title = "ESP BALL", Desc = "ESP da bola desativado!", Time = 3}) end end})
-    FPSBoost:Button({Title = "SHADER", Desc = "info: esse Shader é apenas para deixar a gameplay mais bonita", Callback = function() loadstring(game:HttpGet("https://pastebin.com/raw/Zpaf00Nu"))() Window:Notify({Title = "SHADER", Desc = "SHADER ativado!", Time = 3}) end})
+    FPSBoost:Button({Title = "SHADER", Desc = "info: esse Shader Ã© apenas para deixar a gameplay mais bonita", Callback = function() loadstring(game:HttpGet("https://pastebin.com/raw/Zpaf00Nu"))() Window:Notify({Title = "SHADER", Desc = "SHADER ativado!", Time = 3}) end})
     local RainEnabled = false
-    FPSBoost:Toggle({
-        Title = "CHUVA",
-        Desc = "info: essa chuva é só para talvez deixar o visual da gameplay melhor",
-        Value = false,
-        Callback = function(v)
-            RainEnabled = v
-            if v then
-                loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Chuva/refs/heads/main/README.md"))()
-                Window:Notify({Title = "CHUVA", Desc = "CHUVA ativada!", Time = 3})
-            else
-                for _, drop in pairs(Workspace:GetChildren()) do
-                    if drop:IsA("Part") and drop.Size.Y < 5 and drop.Transparency > 0.4 then drop:Destroy() end
-                end
-                local lighting = game:GetService("Lighting")
-                for _, sky in pairs(lighting:GetChildren()) do if sky:IsA("Sky") then sky:Destroy() end end
-                lighting.FogStart = 0 lighting.FogEnd = 100000 lighting.Brightness = 2
-                Window:Notify({Title = "CHUVA", Desc = "CHUVA desativada!", Time = 3})
-            end
-        end
-    })
-    FPSBoost:Button({Title = "TEAM SELECT", Desc = "info: escolha seu time azul ou vermelho", Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Sele-o-de-time/refs/heads/main/README.md"))() Window:Notify({Title = "TEAM SELECT", Desc = "Tela de seleção aberta!", Time = 3}) end})
+    FPSBoost:Toggle({Title = "CHUVA", Desc = "info: essa chuva Ã© sÃ³ para talvez deixar o visual da gameplay melhor", Value = false, Callback = function(v) RainEnabled = v if v then loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Chuva/refs/heads/main/README.md"))() Window:Notify({Title = "CHUVA", Desc = "CHUVA ativada!", Time = 3}) else for _, drop in pairs(Workspace:GetChildren()) do if drop:IsA("Part") and drop.Size.Y < 5 and drop.Transparency > 0.4 then drop:Destroy() end end local lighting = game:GetService("Lighting") for _, sky in pairs(lighting:GetChildren()) do if sky:IsA("Sky") then sky:Destroy() end end lighting.FogStart = 0 lighting.FogEnd = 100000 lighting.Brightness = 2 Window:Notify({Title = "CHUVA", Desc = "CHUVA desativada!", Time = 3}) end end})
+    FPSBoost:Button({Title = "TEAM SELECT", Desc = "info: escolha seu time azul ou vermelho", Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Sele-o-de-time/refs/heads/main/README.md"))() Window:Notify({Title = "TEAM SELECT", Desc = "Tela de seleÃ§Ã£o aberta!", Time = 3}) end})
     FPSBoost:Section({Title = "CAMERA"})
     local FOVValue = 0.5
     local FOVEnabled = false
     local FOVConnection = nil
-    FPSBoost:Toggle({
-        Title = "FOV",
-        Desc = "info: mexa na distância da sua visão",
-        Value = false,
-        Callback = function(v)
-            FOVEnabled = v
-            if v then
-                FOVConnection = RunService.RenderStepped:Connect(function()
-                    if FOVEnabled then
-                        Workspace.CurrentCamera.CoordinateFrame = Workspace.CurrentCamera.CoordinateFrame * CFrame.new(0,0,0,FOVValue+0.001,0,0,0,FOVValue+0.001,0,0,0,1)
-                    end
-                end)
-            else
-                if FOVConnection then FOVConnection:Disconnect() FOVConnection = nil end
-            end
-        end
-    })
+    FPSBoost:Toggle({Title = "FOV", Desc = "info: mexa na distÃ¢ncia da sua visÃ£o", Value = false, Callback = function(v) FOVEnabled = v if v then FOVConnection = RunService.RenderStepped:Connect(function() if FOVEnabled then Workspace.CurrentCamera.CoordinateFrame = Workspace.CurrentCamera.CoordinateFrame * CFrame.new(0,0,0,FOVValue+0.001,0,0,0,FOVValue+0.001,0,0,0,1) end end) else if FOVConnection then FOVConnection:Disconnect() FOVConnection = nil end end end})
     FPSBoost:Slider({Title = "FOV VALUE", Min = 0, Max = 100, Rounding = 1, Value = 50, Callback = function(val) FOVValue = (100 - val) / 100 end})
 end
 

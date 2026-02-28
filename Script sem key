@@ -581,6 +581,14 @@ end
 
 local Misc = Window:Tab({Title = "CUSTOM", Icon = "star"}) do
     Misc:Section({Title = "CUSTOM"})
+    Misc:Button({
+        Title = "MUSIC MODE",
+        Desc = "info: escolha mÃºsicas para tocar durante a gameplay",
+        Callback = function()
+            loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-YouTube-Music-Player-72222"))()
+            Window:Notify({Title = "MUSIC MODE", Desc = "Player de mÃºsica aberto!", Time = 3})
+        end
+    })
     Misc:Textbox({Title = "ID CUSTOMIZE RAGDOLL", Desc = "info: bote o id de um Audio para quando alguem tomar ragdoll", Placeholder = savedRagdollId ~= "" and savedRagdollId or "Ex: 137822897777384", Callback = function(val) local id = tostring(val):match("%d+") if id and id ~= "0" then ragdollSoundId = id if writefile then pcall(function() writefile("sylax_ragdoll_id.txt", id) end) end Window:Notify({Title = "RAGDOLL ID", Desc = "ID salvo: " .. id, Time = 3}) else ragdollSoundId = "" Window:Notify({Title = "RAGDOLL ID", Desc = "ID invalido!", Time = 3}) end end})
     Misc:Textbox({Title = "ID CUSTOMIZE GOAL", Desc = "info: bote o ID do som para quando voce fazer gol", Placeholder = savedGoalId ~= "" and savedGoalId or "Ex: 137822897777384", Callback = function(val) local id = tostring(val):match("%d+") if id and id ~= "0" then goalSoundId = id if writefile then pcall(function() writefile("sylax_goal_id.txt", id) end) end Window:Notify({Title = "GOAL ID", Desc = "ID salvo: " .. id, Time = 3}) else goalSoundId = "" Window:Notify({Title = "GOAL ID", Desc = "ID invalido!", Time = 3}) end end})
     Misc:Section({Title = "COLOR SKILL"})

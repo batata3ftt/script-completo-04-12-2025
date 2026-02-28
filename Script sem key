@@ -516,7 +516,6 @@ for _, p in pairs(Players:GetPlayers()) do
 end
 
 -- ========== SISTEMA DE UNIFORMES ==========
-
 local KITS = {
     {name = "Manshine City", shirt = "76851298419799", pants = "123398716070515"},
     {name = "BASTARD", shirt = "91103505462276", pants = "12975858304"},
@@ -616,6 +615,96 @@ local FPSBoost = Window:Tab({Title = "SETTINGS", Icon = "settings"}) do
     FPSBoost:Toggle({Title = "CHUVA", Desc = "info: essa chuva Ã© sÃ³ para talvez deixar o visual da gameplay melhor", Value = false, Callback = function(v) RainEnabled = v if v then loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Chuva/refs/heads/main/README.md"))() Window:Notify({Title = "CHUVA", Desc = "CHUVA ativada!", Time = 3}) else for _, drop in pairs(Workspace:GetChildren()) do if drop:IsA("Part") and drop.Size.Y < 5 and drop.Transparency > 0.4 then drop:Destroy() end end local lighting = game:GetService("Lighting") for _, sky in pairs(lighting:GetChildren()) do if sky:IsA("Sky") then sky:Destroy() end end lighting.FogStart = 0 lighting.FogEnd = 100000 lighting.Brightness = 2 Window:Notify({Title = "CHUVA", Desc = "CHUVA desativada!", Time = 3}) end end})
     FPSBoost:Button({Title = "TEAM SELECT", Desc = "info: escolha seu time azul ou vermelho", Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Sele-o-de-time/refs/heads/main/README.md"))() Window:Notify({Title = "TEAM SELECT", Desc = "Tela de seleÃ§Ã£o aberta!", Time = 3}) end})
     FPSBoost:Section({Title = "CAMERA"})
+    
+    local SensitivityEnabled = false
+    local currentSensitivity = 1
+    local cameraInputModule = nil
+    local hookActive = false
+    
+    local function setupTouchSensitivity()
+        local UserInputService = game:GetService("UserInputService")
+        local success = false
+        
+        pcall(function()
+            local playerScripts = player:FindFirstChild("PlayerScripts")
+            if not playerScripts then return end
+            
+            local playerModule = playerScripts:FindFirstChild("PlayerModule")
+            if not playerModule then return end
+            
+            local cameraModule = playerModule:FindFirstChild("CameraModule")
+            if cameraModule then
+                local cameraInput = cameraModule:FindFirstChild("CameraInput")
+                if cameraInput then
+                    cameraInputModule = require(cameraInput)
+                    if cameraInputModule and cameraInputModule.getRotation then
+                        local originalGetRotation = cameraInputModule.getRotation
+                        cameraInputModule.getRotation = function(disableRotation)
+                            local rotation = originalGetRotation(disableRotation)
+                            if UserInputService.TouchEnabled and SensitivityEnabled then
+                                return rotation * currentSensitivity
+                            end
+                            return rotation
+                        end
+                        success = true
+                        hookActive = true
+                    end
+                end
+            end
+        end)
+        
+        if not success then
+            pcall(function()
+                local oldIndex
+                oldIndex = hookmetamethod(game, "__index", function(self, key)
+                    if self == UserInputService and key == "MouseDelta" and UserInputService.TouchEnabled and SensitivityEnabled then
+                        local original = oldIndex(self, key)
+                        return original * currentSensitivity
+                    end
+                    return oldIndex(self, key)
+                end)
+                success = true
+                hookActive = true
+            end)
+        end
+        
+        return success
+    end
+    
+    FPSBoost:Toggle({
+        Title = "SENSIBILIDADE",
+        Desc = "info: mude a sensibilidade do seu toque",
+        Value = false,
+        Callback = function(v)
+            SensitivityEnabled = v
+            if v then
+                if not hookActive then
+                    local success = setupTouchSensitivity()
+                    if success then
+                        Window:Notify({Title = "SENSIBILIDADE", Desc = "Sensibilidade ativada!", Time = 2})
+                    else
+                        Window:Notify({Title = "SENSIBILIDADE", Desc = "Falha ao ativar", Time = 2})
+                    end
+                else
+                    Window:Notify({Title = "SENSIBILIDADE", Desc = "Sensibilidade ativada!", Time = 2})
+                end
+            else
+                Window:Notify({Title = "SENSIBILIDADE", Desc = "Sensibilidade desativada!", Time = 2})
+            end
+        end
+    })
+    
+    FPSBoost:Slider({
+        Title = "SENSIBILIDADE",
+        Min = 1,
+        Max = 10,
+        Rounding = 1,
+        Value = 1,
+        Callback = function(val)
+            currentSensitivity = val
+        end
+    })
+    
     local FOVValue = 0.5
     local FOVEnabled = false
     local FOVConnection = nil

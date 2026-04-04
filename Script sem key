@@ -1,5 +1,14 @@
--- SYLAX HUB - LUNA UI VERSION
+"-- SYLAX HUB - LUNA UI VERSION
 -- Criado por: nonex
+
+-- ========== VERIFICAÃ‡ÃƒO DE JOGO ==========
+local ALLOWED_PLACE_ID = 13641922937
+
+if game.PlaceId ~= ALLOWED_PLACE_ID then
+	game:GetService("Players").LocalPlayer:Kick("âŒ SYLAX HUB: Este script sÃ³ funciona no META LOCK!")
+	return
+end
+-- ==========================================
 
 local Luna = loadstring(game:HttpGet("https://raw.githubusercontent.com/Nebula-Softworks/Luna-Interface-Suite/refs/heads/master/source.lua", true))()
 
@@ -17,7 +26,7 @@ local Window = Luna:CreateWindow({
 	KeySystem = false
 })
 
--- ========== VARIÁVEIS GLOBAIS ==========
+-- ========== VARIÃVEIS GLOBAIS ==========
 local player = game.Players.LocalPlayer
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -43,7 +52,7 @@ end
 local ragdollSoundId = savedRagdollId
 local goalSoundId = savedGoalId
 
--- ========== FUNÇÕES AUXILIARES ==========
+-- ========== FUNÃ‡Ã•ES AUXILIARES ==========
 
 local function applyValues()
 	if player.Character and player.Character:FindFirstChild("Humanoid") then
@@ -568,7 +577,7 @@ local function equipTeamKit(kit)
 	end
 end
 
--- ========== CRIAÇÃO DAS TABS ==========
+-- ========== CRIAÃ‡ÃƒO DAS TABS ==========
 
 local MainTab = Window:CreateTab({
 	Name = "MAIN",
@@ -585,7 +594,7 @@ local TechsTab = Window:CreateTab({
 })
 
 local ArmasTab = Window:CreateTab({
-	Name = "ARMAS ENGRAÇADAS",
+	Name = "ARMAS ENGRAÃ‡ADAS",
 	Icon = "auto_awesome",
 	ImageSource = "Material",
 	ShowTitle = true
@@ -609,9 +618,9 @@ local SettingsTab = Window:CreateTab({
 
 MainTab:CreateSection("MOVEMENT")
 
-MainTab:CreateToggle({
+MainTab:CreateTogle({
 	Name = "WALKSPEED",
-	Description = "Recomendo 37 de speed se quiser disfarçar",
+	Description = "Recomendo 37 de speed se quiser disfarÃ§ar",
 	CurrentValue = false,
 	Callback = function(Value)
 		WalkSpeedEnabled = Value
@@ -632,7 +641,7 @@ MainTab:CreateSlider({
 
 MainTab:CreateToggle({
 	Name = "JUMPOWER",
-	Description = "Recomendo 66 de power se quiser disfarçar",
+	Description = "Recomendo 66 de power se quiser disfarÃ§ar",
 	CurrentValue = false,
 	Callback = function(Value)
 		JumpPowerEnabled = Value
@@ -729,7 +738,7 @@ TechsTab:CreateButton({
 
 TechsTab:CreateButton({
 	Name = "AIMBOT BALL (BETA)",
-	Description = "O aimbot não gruda com a bola parada",
+	Description = "O aimbot nÃ£o gruda com a bola parada",
 	Callback = function()
 		loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/AIMBOT-BALL-OBFUSCADO-/refs/heads/main/AIMBOT%20BALL%20OBFUSCADO"))()
 		Luna:Notification({
@@ -755,17 +764,17 @@ TechsTab:CreateButton({
 	end
 })
 
--- ========== TAB ARMAS ENGRAÇADAS ==========
+-- ========== TAB ARMAS ENGRAÃ‡ADAS ==========
 
 ArmasTab:CreateSection("ARMAS MODIFICADAS")
 
 ArmasTab:CreateButton({
 	Name = "EMPERROR",
-	Description = "Essa arma é modificada para deixar a gameplay mais divertida",
+	Description = "Essa arma Ã© modificada para deixar a gameplay mais divertida",
 	Callback = function()
 		loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Script-skill-meme-completar-emperor/refs/heads/main/Skill%20meme%20emperor"))()
 		Luna:Notification({
-			Title = "ARMAS ENGRAÇADAS",
+			Title = "ARMAS ENGRAÃ‡ADAS",
 			Icon = "star",
 			ImageSource = "Material",
 			Content = "skills memes + aura"
@@ -775,11 +784,11 @@ ArmasTab:CreateButton({
 
 ArmasTab:CreateButton({
 	Name = "ZOMBIE DRIBBLING",
-	Description = "Essa arma é modificada para deixar a gameplay mais divertida",
+	Description = "Essa arma Ã© modificada para deixar a gameplay mais divertida",
 	Callback = function()
 		loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Zombie-driblling-skills/refs/heads/main/README.md"))()
 		Luna:Notification({
-			Title = "ARMAS ENGRAÇADAS",
+			Title = "ARMAS ENGRAÃ‡ADAS",
 			Icon = "psychology",
 			ImageSource = "Material",
 			Content = "ZOMBIE DRIBBLING MOD executado!"
@@ -789,11 +798,11 @@ ArmasTab:CreateButton({
 
 ArmasTab:CreateButton({
 	Name = "NEL ISAGI",
-	Description = "Essa arma é modificada para deixar a gameplay mais divertida",
+	Description = "Essa arma Ã© modificada para deixar a gameplay mais divertida",
 	Callback = function()
 		loadstring(game:HttpGet("https://raw.githubusercontent.com/batata3ftt/Nel-isagi-mod/refs/heads/main/README.md"))()
 		Luna:Notification({
-			Title = "ARMAS ENGRAÇADAS",
+			Title = "ARMAS ENGRAÃ‡ADAS",
 			Icon = "flash_on",
 			ImageSource = "Material",
 			Content = "NEL ISAGI MOD executado!"
@@ -807,14 +816,14 @@ CustomTab:CreateSection("CUSTOM")
 
 CustomTab:CreateButton({
 	Name = "MUSIC MODE",
-	Description = "Escolha músicas para tocar durante a gameplay",
+	Description = "Escolha mÃºsicas para tocar durante a gameplay",
 	Callback = function()
 		loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-YouTube-Music-Player-72222"))()
 		Luna:Notification({
 			Title = "MUSIC MODE",
 			Icon = "music_note",
 			ImageSource = "Material",
-			Content = "Player de música aberto!"
+			Content = "Player de mÃºsica aberto!"
 		})
 	end
 })
@@ -898,7 +907,7 @@ CustomTab:CreateDropdown({
 
 CustomTab:CreateToggle({
 	Name = "CUSTOM COLOR SKILL (BETA)",
-	Description = "O script está com alguns bugs minimos mas ainda sim é totalmente jogavel",
+	Description = "O script estÃ¡ com alguns bugs minimos mas ainda sim Ã© totalmente jogavel",
 	CurrentValue = false,
 	Callback = function(Value)
 		colorSkillEnabled = Value
@@ -947,7 +956,7 @@ SettingsTab:CreateSection("PERFORMANCE")
 
 SettingsTab:CreateButton({
 	Name = "FPS BOOST",
-	Description = "Vai travar um pouco mais é só pra carregar o script",
+	Description = "Vai travar um pouco mais Ã© sÃ³ pra carregar o script",
 	Callback = function()
 		getgenv().REMOVE_EFFECTS = true
 		getgenv().SHOW_WHOLE_MAP = true
@@ -966,7 +975,7 @@ SettingsTab:CreateSection("VISUAL")
 
 SettingsTab:CreateToggle({
 	Name = "META VISION",
-	Description = "Ative a meta visão e receba informações sobre os jogadores",
+	Description = "Ative a meta visÃ£o e receba informaÃ§Ãµes sobre os jogadores",
 	CurrentValue = false,
 	Callback = function(Value)
 		if Value then
@@ -1019,7 +1028,7 @@ SettingsTab:CreateToggle({
 
 SettingsTab:CreateButton({
 	Name = "SHADER",
-	Description = "Esse Shader é apenas para deixar a gameplay mais bonita",
+	Description = "Esse Shader Ã© apenas para deixar a gameplay mais bonita",
 	Callback = function()
 		loadstring(game:HttpGet("https://pastebin.com/raw/Zpaf00Nu"))()
 		Luna:Notification({
@@ -1033,7 +1042,7 @@ SettingsTab:CreateButton({
 
 SettingsTab:CreateToggle({
 	Name = "CHUVA",
-	Description = "Essa chuva é só para talvez deixar o visual da gameplay melhor",
+	Description = "Essa chuva Ã© sÃ³ para talvez deixar o visual da gameplay melhor",
 	CurrentValue = false,
 	Callback = function(Value)
 		if Value then
@@ -1072,7 +1081,7 @@ SettingsTab:CreateButton({
 			Title = "TEAM SELECT",
 			Icon = "groups",
 			ImageSource = "Material",
-			Content = "Tela de seleção aberta!"
+			Content = "Tela de seleÃ§Ã£o aberta!"
 		})
 	end
 })
@@ -1194,7 +1203,7 @@ local FOVConnection = nil
 
 SettingsTab:CreateToggle({
 	Name = "FOV",
-	Description = "Mexa na distância da sua visão",
+	Description = "Mexa na distÃ¢ncia da sua visÃ£o",
 	CurrentValue = false,
 	Callback = function(Value)
 		FOVEnabled = Value
@@ -1233,4 +1242,4 @@ Luna:Notification({
 	Content = "Script carregado com sucesso!"
 })
 
-print("SYLAX HUB - Luna UI Version loaded successfully!")
+print("SYLAX HUB - Luna UI Version loaded successfully!")"
